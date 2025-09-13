@@ -5,6 +5,315 @@ let analyses = [];
 let userProfile = null;
 let currentGalleryView = 'grid';
 let currentFilter = '';
+let chatHistory = [];
+
+// Theme Management
+function toggleTheme() {
+    const body = document.body;
+    const currentTheme = body.classList.contains('theme-dark') ? 'dark' : 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    body.classList.remove('theme-light', 'theme-dark');
+    body.classList.add(`theme-${newTheme}`);
+    
+    // Update theme icon
+    const themeIcon = document.querySelector('.theme-icon');
+    themeIcon.className = newTheme === 'light' ? 'fas fa-moon theme-icon' : 'fas fa-sun theme-icon';
+    
+    // Save preference
+    localStorage.setItem('theme', newTheme);
+    
+    showNotification(`Switched to ${newTheme} theme`, 'success');
+}
+
+// Mobile Navigation
+function toggleMobileNav() {
+    const navbar = document.getElementById('navbar');
+    const navMenu = document.getElementById('nav-menu');
+    
+    navbar.classList.toggle('mobile-open');
+    navMenu.classList.toggle('mobile-open');
+}
+
+// Email Functions
+async function testEmail() {
+    try {
+        showNotification('Sending test email...', 'info');
+        
+        const response = await fetch('/api/test-email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Test email sent! Check your inbox.', 'success');
+        } else {
+            showNotification(`Failed to send email: ${result.message}`, 'error');
+        }
+    } catch (error) {
+        showNotification('Error sending test email', 'error');
+        console.error('Test email error:', error);
+    }
+}
+
+async function sendDailySummary() {
+    try {
+        showNotification('Generating daily summary...', 'info');
+        
+        const response = await fetch('/api/send-daily-summary', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Daily summary sent! Check your email.', 'success');
+        } else {
+            showNotification(`Failed to send summary: ${result.message}`, 'error');
+        }
+    } catch (error) {
+        showNotification('Error sending daily summary', 'error');
+        console.error('Daily summary error:', error);
+    }
+}
+
+// Quick Analysis
+async function quickAnalysis(file) {
+    if (!file) return;
+    
+    try {
+        showNotification('Starting quick AI analysis...', 'info');
+        
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('type', 'Unknown');
+        formData.append('location', 'Quick Analysis');
+        formData.append('notes', 'Quick analysis from dashboard');
+        
+        const response = await fetch('/api/crops', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Quick analysis complete! Check your crops.', 'success');
+            loadCrops(); // Refresh crops
+            showSection('crops'); // Switch to crops view
+        } else {
+            showNotification(`Analysis failed: ${result.message}`, 'error');
+        }
+    } catch (error) {
+        showNotification('Error during quick analysis', 'error');
+        console.error('Quick analysis error:', error);
+    }
+}
+
+// Chat Functions
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Add user message to chat
+    addChatMessage(message, 'user');
+    input.value = '';
+    
+    // Show typing indicator
+    showTypingIndicator();
+    
+    try {
+        const response = await fetch('/api/ai-chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        const result = await response.json();
+        
+        // Remove typing indicator
+        hideTypingIndicator();
+        
+        if (result.success) {
+            addChatMessage(result.response, 'ai');
+        } else {
+            addChatMessage('Sorry, I encountered an error. Please try again.', 'ai');
+        }
+    } catch (error) {
+        hideTypingIndicator();
+        addChatMessage('Sorry, I cannot connect to the AI service right now.', 'ai');
+        console.error('Chat error:', error);
+    }
+}
+
+function handleChatKeypress(event) {
+    if (event.key === 'Enter') {
+        sendChatMessage();
+    }
+}
+
+function askQuickQuestion(question) {
+    const input = document.getElementById('chat-input');
+    input.value = question;
+    sendChatMessage();
+}
+
+function addChatMessage(message, sender) {
+    const messagesContainer = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}-message`;
+    
+    const avatar = sender === 'ai' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+    const senderName = sender === 'ai' ? 'AgroAI Assistant' : 'You';
+    const time = new Date().toLocaleTimeString();
+    
+    messageDiv.innerHTML = `
+        <div class="message-avatar">
+            ${avatar}
+        </div>
+        <div class="message-content">
+            <div class="message-header">
+                <strong>${senderName}</strong>
+                <span class="message-time">${time}</span>
+            </div>
+            <div class="message-text">${message}</div>
+        </div>
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Store in chat history
+    chatHistory.push({ message, sender, time });
+}
+
+function showTypingIndicator() {
+    const messagesContainer = document.getElementById('chat-messages');
+    const typingDiv = document.createElement('div');
+    typingDiv.id = 'typing-indicator';
+    typingDiv.className = 'chat-message ai-message typing';
+    
+    typingDiv.innerHTML = `
+        <div class="message-avatar">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="message-content">
+            <div class="message-text">
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    messagesContainer.appendChild(typingDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const typingIndicator = document.getElementById('typing-indicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
+// Initialize theme on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.body.classList.add(`theme-${savedTheme}`);
+    
+    const themeIcon = document.querySelector('.theme-icon');
+    if (themeIcon) {
+        themeIcon.className = savedTheme === 'light' ? 'fas fa-moon theme-icon' : 'fas fa-sun theme-icon';
+    }
+    
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('🚀 SW registered: ', registration);
+                    showNotification('App ready for offline use!', 'success');
+                })
+                .catch(registrationError => {
+                    console.log('❌ SW registration failed: ', registrationError);
+                });
+        });
+    }
+    
+    // Handle install prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Show install button or banner
+        const installBanner = document.createElement('div');
+        installBanner.className = 'install-banner';
+        installBanner.innerHTML = `
+            <div class="install-content">
+                <div class="install-icon">📱</div>
+                <div class="install-text">
+                    <strong>Install AgroAI</strong>
+                    <p>Get the full app experience</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="installApp()">Install</button>
+                <button class="btn btn-outline btn-sm" onclick="this.parentElement.parentElement.remove()">Later</button>
+            </div>
+        `;
+        
+        document.body.appendChild(installBanner);
+        
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            if (installBanner.parentElement) {
+                installBanner.remove();
+            }
+        }, 10000);
+    });
+    
+    // Handle app installed
+    window.addEventListener('appinstalled', (evt) => {
+        console.log('🎉 AgroAI installed successfully!');
+        showNotification('AgroAI installed! Launch from your home screen.', 'success');
+    });
+});
+
+// Install app function
+async function installApp() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        if (outcome === 'accepted') {
+            console.log('✅ User accepted the install prompt');
+            showNotification('Installing AgroAI...', 'info');
+        } else {
+            console.log('❌ User dismissed the install prompt');
+        }
+        
+        deferredPrompt = null;
+        
+        // Remove install banner
+        const banner = document.querySelector('.install-banner');
+        if (banner) {
+            banner.remove();
+        }
+    }
+}
 
 // Show notification
 function showNotification(message, type = 'info') {
@@ -28,6 +337,12 @@ function showNotification(message, type = 'info') {
 function showSection(section) {
     console.log('Switching to section:', section);
     currentSection = section;
+    
+    // Close mobile nav if open
+    const navbar = document.getElementById('navbar');
+    const navMenu = document.getElementById('nav-menu');
+    navbar.classList.remove('mobile-open');
+    navMenu.classList.remove('mobile-open');
     
     // Update nav links
     document.querySelectorAll('.nav-link').forEach(link => {

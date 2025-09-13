@@ -10,11 +10,15 @@
   "dependencies": {
     "axios": "^1.12.1",
     "bcryptjs": "^2.4.3",
+    "dotenv": "^17.2.2",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "jimp": "^1.6.0",
     "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.6",
     "sharp": "^0.34.3",
+    "sqlite3": "^5.1.7",
     "uuid": "^9.0.0"
   },
   "keywords": [

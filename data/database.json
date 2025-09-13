@@ -13,6 +13,13 @@
       "email": "souptiksamanta20141188@gmail.com",
       "password": "$2a$10$0JttQaVVJP2exAGpRRMPYuM4rhhXtBI2iaswB7oSgF74NOMCGkxpW",
       "createdAt": "2025-09-13T07:43:18.663Z"
+    },
+    {
+      "id": "b2e3886f-2116-4ae8-a99f-98142eddd470",
+      "username": "souptik",
+      "email": "souptikisme@gmail.com",
+      "password": "$2a$10$ls3tksSyOSROb8aT3zXfLuBm90MAhtjnpF9/ejGdn2hsu0tnhytMa",
+      "createdAt": "2025-09-13T08:50:28.929Z"
     }
   ],
   "crops": [
@@ -119,6 +126,123 @@
       "imageSize": null,
       "createdAt": "2025-09-13T07:43:21.964Z",
       "updatedAt": "2025-09-13T07:43:21.964Z"
+    },
+    {
+      "id": "4c868ac9-150a-40db-9847-bc97d1dfee7f",
+      "userId": "b2e3886f-2116-4ae8-a99f-98142eddd470",
+      "name": "North Field Wheat",
+      "type": "wheat",
+      "location": "Field A-1",
+      "plantedDate": "2024-03-15",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T08:50:32.391Z",
+      "updatedAt": "2025-09-13T08:50:32.391Z"
+    },
+    {
+      "id": "4b671690-a05c-4b9c-b0c8-687b443dabe8",
+      "userId": "b2e3886f-2116-4ae8-a99f-98142eddd470",
+      "name": "Greenhouse Tomatoes",
+      "type": "tomato",
+      "location": "Greenhouse B",
+      "plantedDate": "2024-04-01",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T08:50:32.403Z",
+      "updatedAt": "2025-09-13T08:50:32.403Z"
+    },
+    {
+      "id": "826bf526-ed5a-46ae-b46a-af6ffb6da353",
+      "userId": "b2e3886f-2116-4ae8-a99f-98142eddd470",
+      "name": "East Plot Corn",
+      "type": "corn",
+      "location": "Field C-2",
+      "plantedDate": "2024-03-20",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T08:50:32.414Z",
+      "updatedAt": "2025-09-13T08:50:32.414Z"
+    },
+    {
+      "id": "7a6390ca-2b24-4b68-8b7b-c5f8ef57c631",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "North Field Wheat",
+      "type": "wheat",
+      "location": "Field A-1",
+      "plantedDate": "2024-03-15",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T09:20:05.081Z",
+      "updatedAt": "2025-09-13T09:20:05.081Z"
+    },
+    {
+      "id": "595805ad-bd14-4f77-8373-b98f7a019570",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "Greenhouse Tomatoes",
+      "type": "tomato",
+      "location": "Greenhouse B",
+      "plantedDate": "2024-04-01",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T09:20:05.096Z",
+      "updatedAt": "2025-09-13T09:20:05.096Z"
+    },
+    {
+      "id": "57eb1751-d517-48ff-b6b1-c5e24fa32265",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "East Plot Corn",
+      "type": "corn",
+      "location": "Field C-2",
+      "plantedDate": "2024-03-20",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T09:20:05.107Z",
+      "updatedAt": "2025-09-13T09:20:05.107Z"
+    },
+    {
+      "id": "cc499d25-4e86-4f1a-81fd-9690baae79c2",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "North Field Wheat",
+      "type": "wheat",
+      "location": "Field A-1",
+      "plantedDate": "2024-03-15",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T09:21:53.125Z",
+      "updatedAt": "2025-09-13T09:21:53.125Z"
+    },
+    {
+      "id": "d4e05955-740c-404e-80ec-6c887f6cb032",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "Greenhouse Tomatoes",
+      "type": "tomato",
+      "location": "Greenhouse B",
+      "plantedDate": "2024-04-01",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T09:21:53.145Z",
+      "updatedAt": "2025-09-13T09:21:53.145Z"
+    },
+    {
+      "id": "ecfb90a3-9a1d-4609-aa09-f1c358083b77",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "East Plot Corn",
+      "type": "corn",
+      "location": "Field C-2",
+      "plantedDate": "2024-03-20",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T09:21:53.182Z",
+      "updatedAt": "2025-09-13T09:21:53.182Z"
     }
   ],
   "analyses": [

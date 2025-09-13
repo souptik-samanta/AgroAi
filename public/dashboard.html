@@ -4,37 +4,72 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgroAI - Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.0">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
 </head>
-<body>
-    <nav class="navbar">
+<body class="theme-dark">
+    <!-- Mobile Navigation Toggle -->
+    <button class="mobile-nav-toggle" onclick="toggleMobileNav()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-moon theme-icon"></i>
+    </button>
+
+    <nav class="navbar" id="navbar">
         <div class="nav-brand">
             <i class="fas fa-seedling"></i>
             <span>AgroAI</span>
+            <span class="beta-badge">GPT-4</span>
         </div>
-        <div class="nav-menu">
+        <div class="nav-menu" id="nav-menu">
             <a href="#dashboard" class="nav-link active" onclick="showSection('dashboard')">
-                <i class="fas fa-chart-line"></i> Dashboard
+                <i class="fas fa-chart-line"></i> 
+                <span>Dashboard</span>
             </a>
-            <a href="#crops" class="nav-link" onclick="showSection('crops')">
-                <i class="fas fa-leaf"></i> My Crops
+            <a href="crops.html" class="nav-link">
+                <i class="fas fa-leaf"></i> 
+                <span>My Crops</span>
             </a>
-            <a href="#gallery" class="nav-link" onclick="showSection('gallery')">
-                <i class="fas fa-images"></i> Gallery
-            </a>
-            <a href="#analyses" class="nav-link" onclick="showSection('analyses')">
-                <i class="fas fa-microscope"></i> AI Analysis
+            <a href="#chat" class="nav-link" onclick="showSection('chat')">
+                <i class="fas fa-comments"></i> 
+                <span>AI Chat</span>
             </a>
             <a href="files.html" class="nav-link">
-                <i class="fas fa-folder"></i> Files
+                <i class="fas fa-images"></i> 
+                <span>Gallery</span>
+            </a>
+            <a href="#analyses" class="nav-link" onclick="showSection('analyses')">
+                <i class="fas fa-microscope"></i> 
+                <span>Analysis</span>
             </a>
             <div class="nav-user">
-                <span id="username">Loading...</span>
-                <button onclick="logout()" class="btn btn-secondary btn-sm">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-details">
+                        <span id="username">Loading...</span>
+                        <small class="user-status">Online</small>
+                    </div>
+                </div>
+                <div class="user-actions">
+                    <button onclick="testEmail()" class="btn btn-outline btn-sm">
+                        <i class="fas fa-envelope"></i> Test Email
+                    </button>
+                    <button onclick="sendDailySummary()" class="btn btn-outline btn-sm">
+                        <i class="fas fa-paper-plane"></i> Daily Summary
+                    </button>
+                    <button onclick="logout()" class="btn btn-danger btn-sm">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
             </div>
         </div>
     </nav>
@@ -44,49 +79,76 @@
         <section id="dashboard" class="content-section active">
             <div class="section-header">
                 <h2><i class="fas fa-chart-line"></i> Dashboard</h2>
-                <p>Monitor your crops with AI-powered insights and real-time analytics</p>
+                <p>AI-powered crop monitoring with GPT-4 vision analysis</p>
             </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <button class="quick-action" onclick="document.getElementById('quick-upload').click()">
+                    <i class="fas fa-camera"></i>
+                    <span>Quick Analysis</span>
+                </button>
+                <button class="quick-action" onclick="showSection('crops')">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Crop</span>
+                </button>
+                <button class="quick-action" onclick="showSection('chat')">
+                    <i class="fas fa-robot"></i>
+                    <span>Ask AI</span>
+                </button>
+                <button class="quick-action" onclick="sendDailySummary()">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email Summary</span>
+                </button>
+            </div>
+            
+            <input type="file" id="quick-upload" accept="image/*" style="display: none;" onchange="quickAnalysis(this.files[0])">
 
             <div class="dashboard-section">
                 <!-- Stats Cards -->
-                <div class="stats-container">
-                    <div class="stats-grid">
-                        <div class="stat-card">
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Crops</div>
                             <div class="stat-icon">
                                 <i class="fas fa-seedling"></i>
                             </div>
-                            <div class="stat-info">
-                                <h3 id="totalCrops">0</h3>
-                                <p>Total Crops</p>
-                            </div>
                         </div>
-                        <div class="stat-card">
+                        <div class="stat-value" id="totalCrops">0</div>
+                        <div class="stat-description">Growing strong 🌱</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Healthy Crops</div>
                             <div class="stat-icon">
                                 <i class="fas fa-heart"></i>
                             </div>
-                            <div class="stat-info">
-                                <h3 id="healthyCrops">0</h3>
-                                <p>Healthy Crops</p>
-                            </div>
                         </div>
-                        <div class="stat-card">
+                        <div class="stat-value" id="healthyCrops">0</div>
+                        <div class="stat-description">In perfect condition ✨</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">AI Analyses</div>
                             <div class="stat-icon">
                                 <i class="fas fa-microscope"></i>
                             </div>
-                            <div class="stat-info">
-                                <h3 id="totalAnalyses">0</h3>
-                                <p>AI Analyses</p>
-                            </div>
                         </div>
-                        <div class="stat-card">
+                        <div class="stat-value" id="totalAnalyses">0</div>
+                        <div class="stat-description">GPT-4 powered insights 🤖</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">AI Confidence</div>
                             <div class="stat-icon">
                                 <i class="fas fa-brain"></i>
                             </div>
-                            <div class="stat-info">
-                                <h3 id="avgConfidence">0%</h3>
-                                <p>Avg Confidence</p>
-                            </div>
                         </div>
+                        <div class="stat-value" id="avgConfidence">0%</div>
+                        <div class="stat-description">Analysis accuracy 🎯</div>
                     </div>
                 </div>
 
@@ -137,6 +199,66 @@
 
                 <div id="cropsGrid" class="content-grid">
                     <!-- Crops will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Chat Section -->
+        <section id="chat" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-comments"></i> AI Chat Assistant</h2>
+                <p>Ask our GPT-4 powered AI anything about crop care, diseases, or farming</p>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-message ai-message">
+                        <div class="message-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <strong>AgroAI Assistant</strong>
+                                <span class="message-time">Just now</span>
+                            </div>
+                            <div class="message-text">
+                                👋 Hello! I'm your AI farming assistant powered by GPT-4. Ask me anything about:
+                                <ul>
+                                    <li>🌱 Crop diseases and pest identification</li>
+                                    <li>💧 Watering and irrigation advice</li>
+                                    <li>🌾 Fertilizer and soil recommendations</li>
+                                    <li>📅 Planting and harvesting schedules</li>
+                                    <li>🔬 Analysis result explanations</li>
+                                </ul>
+                                What would you like to know?
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <div class="quick-questions">
+                        <button class="quick-question" onclick="askQuickQuestion('Why are my tomato leaves turning yellow?')">
+                            🍅 Yellow leaves?
+                        </button>
+                        <button class="quick-question" onclick="askQuickQuestion('How often should I water my crops?')">
+                            💧 Watering schedule?
+                        </button>
+                        <button class="quick-question" onclick="askQuickQuestion('What fertilizer should I use?')">
+                            🌿 Best fertilizer?
+                        </button>
+                        <button class="quick-question" onclick="askQuickQuestion('How to prevent pest attacks?')">
+                            🐛 Pest prevention?
+                        </button>
+                    </div>
+                    
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="Ask me anything about farming..." 
+                               onkeypress="handleChatKeypress(event)">
+                        <button id="chat-send-btn" onclick="sendChatMessage()" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
