@@ -665,3 +665,173 @@ const startServer = async () => {
 };
 
 startServer();
+    
+    // Delete old image if it exists
+    if (crop.imageUrl && crop.imageName) {
+      const oldImagePath = path.join('uploads', crop.imageName);
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
+        console.log(`🗑️ Deleted old image: ${crop.imageName}`);
+      }
+    }
+    
+    // Update crop with new image
+    crop.imageUrl = `/uploads/${req.file.filename}`;
+    crop.imageName = req.file.filename;
+    crop.imageSize = req.file.size;
+    crop.updatedAt = new Date().toISOString();
+    
+    // Generate AI analysis for the new image
+    const analysis = {
+      id: uuidv4(),
+      cropId: crop.id,
+      userId: req.session.userId,
+      imageUrl: crop.imageUrl,
+      imageName: crop.imageName,
+      ...simulateAIAnalysis(crop.type, crop.imageUrl)
+    };
+    
+    db.analyses.push(analysis);
+    writeDB(db);
+    
+    console.log(`📸 Image uploaded for crop "${crop.name}" (${req.file.filename})`);
+    res.json({ 
+      success: true, 
+      message: 'Image uploaded and analyzed successfully!',
+      crop: crop,
+      analysis: analysis
+    });
+    
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    // Clean up uploaded file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+app.delete('/api/crops/:id', requireAuth, (req, res) => {
+  try {
+    const db = readDB();
+    const cropIndex = db.crops.findIndex(crop => 
+      crop.id === req.params.id && crop.userId === req.session.userId
+    );
+    
+    if (cropIndex === -1) {
+      return res.json({ success: false, message: 'Crop not found' });
+    }
+    
+    const crop = db.crops[cropIndex];
+    
+    // Delete associated image file if it exists
+    if (crop.imageUrl && crop.imageName) {
+      const imagePath = path.join('uploads', crop.imageName);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`🗑️ Deleted image file: ${crop.imageName}`);
+      }
+    }
+    
+    // Delete associated analyses
+    const analysesCountBefore = db.analyses.length;
+    db.analyses = db.analyses.filter(analysis => analysis.cropId !== req.params.id);
+    const deletedAnalyses = analysesCountBefore - db.analyses.length;
+    
+    // Delete crop
+    db.crops.splice(cropIndex, 1);
+    writeDB(db);
+    
+    console.log(`🗑️ Deleted crop "${crop.name}" and ${deletedAnalyses} analyses`);
+    res.json({ 
+      success: true, 
+      message: `Crop "${crop.name}" deleted successfully`
+    });
+    
+  } catch (error) {
+    console.error('Error deleting crop:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// Analysis routes
+app.get('/api/analyses', requireAuth, (req, res) => {
+  const db = readDB();
+  const userAnalyses = db.analyses.filter(analysis => analysis.userId === req.session.userId);
+  res.json(userAnalyses);
+});
+
+app.post('/api/analyze/:cropId', requireAuth, (req, res) => {
+  const db = readDB();
+  const crop = db.crops.find(c => c.id === req.params.cropId && c.userId === req.session.userId);
+  
+  if (!crop) {
+    return res.json({ success: false, message: 'Crop not found' });
+  }
+  
+  // Simulate AI processing delay
+  setTimeout(() => {
+    const analysis = {
+      id: uuidv4(),
+      cropId: crop.id,
+      userId: req.session.userId,
+      imageUrl: crop.imageUrl,
+      ...simulateAIAnalysis(crop.type, crop.imageUrl)
+    };
+    
+    db.analyses.push(analysis);
+    writeDB(db);
+    
+    res.json({ success: true, analysis });
+  }, 2000);
+});
+
+// User profile
+app.get('/api/profile', requireAuth, (req, res) => {
+  const db = readDB();
+  const user = db.users.find(u => u.id === req.session.userId);
+  if (user) {
+    const { password, ...userProfile } = user;
+    res.json(userProfile);
+  } else {
+    res.status(404).json({ success: false, message: 'User not found' });
+  }
+});
+
+// Dashboard stats
+app.get('/api/dashboard-stats', requireAuth, (req, res) => {
+  const db = readDB();
+  const userCrops = db.crops.filter(crop => crop.userId === req.session.userId);
+  const userAnalyses = db.analyses.filter(analysis => analysis.userId === req.session.userId);
+  
+  const healthyCrops = userAnalyses.filter(a => 
+    a.health === 'Excellent' || a.health === 'Good'
+  ).length;
+  
+  const stats = {
+    totalCrops: userCrops.length,
+    healthyCrops,
+    totalAnalyses: userAnalyses.length,
+    avgConfidence: userAnalyses.length > 0 ? 
+      (userAnalyses.reduce((sum, a) => sum + a.confidence, 0) / userAnalyses.length).toFixed(1) : 0
+  };
+  
+  res.json(stats);
+});
+
+// Initialize app
+createDirs();
+const db = readDB();
+writeDB(db);
+
+app.listen(PORT, () => {
+  console.log(`🌱 AgroAI Server running on http://localhost:${PORT}`);
+  console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard.html`);
+});

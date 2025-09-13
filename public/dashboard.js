@@ -5,315 +5,6 @@ let analyses = [];
 let userProfile = null;
 let currentGalleryView = 'grid';
 let currentFilter = '';
-let chatHistory = [];
-
-// Theme Management
-function toggleTheme() {
-    const body = document.body;
-    const currentTheme = body.classList.contains('theme-dark') ? 'dark' : 'light';
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    
-    body.classList.remove('theme-light', 'theme-dark');
-    body.classList.add(`theme-${newTheme}`);
-    
-    // Update theme icon
-    const themeIcon = document.querySelector('.theme-icon');
-    themeIcon.className = newTheme === 'light' ? 'fas fa-moon theme-icon' : 'fas fa-sun theme-icon';
-    
-    // Save preference
-    localStorage.setItem('theme', newTheme);
-    
-    showNotification(`Switched to ${newTheme} theme`, 'success');
-}
-
-// Mobile Navigation
-function toggleMobileNav() {
-    const navbar = document.getElementById('navbar');
-    const navMenu = document.getElementById('nav-menu');
-    
-    navbar.classList.toggle('mobile-open');
-    navMenu.classList.toggle('mobile-open');
-}
-
-// Email Functions
-async function testEmail() {
-    try {
-        showNotification('Sending test email...', 'info');
-        
-        const response = await fetch('/api/test-email', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('Test email sent! Check your inbox.', 'success');
-        } else {
-            showNotification(`Failed to send email: ${result.message}`, 'error');
-        }
-    } catch (error) {
-        showNotification('Error sending test email', 'error');
-        console.error('Test email error:', error);
-    }
-}
-
-async function sendDailySummary() {
-    try {
-        showNotification('Generating daily summary...', 'info');
-        
-        const response = await fetch('/api/send-daily-summary', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('Daily summary sent! Check your email.', 'success');
-        } else {
-            showNotification(`Failed to send summary: ${result.message}`, 'error');
-        }
-    } catch (error) {
-        showNotification('Error sending daily summary', 'error');
-        console.error('Daily summary error:', error);
-    }
-}
-
-// Quick Analysis
-async function quickAnalysis(file) {
-    if (!file) return;
-    
-    try {
-        showNotification('Starting quick AI analysis...', 'info');
-        
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('type', 'Unknown');
-        formData.append('location', 'Quick Analysis');
-        formData.append('notes', 'Quick analysis from dashboard');
-        
-        const response = await fetch('/api/crops', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('Quick analysis complete! Check your crops.', 'success');
-            loadCrops(); // Refresh crops
-            showSection('crops'); // Switch to crops view
-        } else {
-            showNotification(`Analysis failed: ${result.message}`, 'error');
-        }
-    } catch (error) {
-        showNotification('Error during quick analysis', 'error');
-        console.error('Quick analysis error:', error);
-    }
-}
-
-// Chat Functions
-async function sendChatMessage() {
-    const input = document.getElementById('chat-input');
-    const message = input.value.trim();
-    
-    if (!message) return;
-    
-    // Add user message to chat
-    addChatMessage(message, 'user');
-    input.value = '';
-    
-    // Show typing indicator
-    showTypingIndicator();
-    
-    try {
-        const response = await fetch('/api/ai-chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ message })
-        });
-        
-        const result = await response.json();
-        
-        // Remove typing indicator
-        hideTypingIndicator();
-        
-        if (result.success) {
-            addChatMessage(result.response, 'ai');
-        } else {
-            addChatMessage('Sorry, I encountered an error. Please try again.', 'ai');
-        }
-    } catch (error) {
-        hideTypingIndicator();
-        addChatMessage('Sorry, I cannot connect to the AI service right now.', 'ai');
-        console.error('Chat error:', error);
-    }
-}
-
-function handleChatKeypress(event) {
-    if (event.key === 'Enter') {
-        sendChatMessage();
-    }
-}
-
-function askQuickQuestion(question) {
-    const input = document.getElementById('chat-input');
-    input.value = question;
-    sendChatMessage();
-}
-
-function addChatMessage(message, sender) {
-    const messagesContainer = document.getElementById('chat-messages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message ${sender}-message`;
-    
-    const avatar = sender === 'ai' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
-    const senderName = sender === 'ai' ? 'AgroAI Assistant' : 'You';
-    const time = new Date().toLocaleTimeString();
-    
-    messageDiv.innerHTML = `
-        <div class="message-avatar">
-            ${avatar}
-        </div>
-        <div class="message-content">
-            <div class="message-header">
-                <strong>${senderName}</strong>
-                <span class="message-time">${time}</span>
-            </div>
-            <div class="message-text">${message}</div>
-        </div>
-    `;
-    
-    messagesContainer.appendChild(messageDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    
-    // Store in chat history
-    chatHistory.push({ message, sender, time });
-}
-
-function showTypingIndicator() {
-    const messagesContainer = document.getElementById('chat-messages');
-    const typingDiv = document.createElement('div');
-    typingDiv.id = 'typing-indicator';
-    typingDiv.className = 'chat-message ai-message typing';
-    
-    typingDiv.innerHTML = `
-        <div class="message-avatar">
-            <i class="fas fa-robot"></i>
-        </div>
-        <div class="message-content">
-            <div class="message-text">
-                <div class="typing-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    messagesContainer.appendChild(typingDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-function hideTypingIndicator() {
-    const typingIndicator = document.getElementById('typing-indicator');
-    if (typingIndicator) {
-        typingIndicator.remove();
-    }
-}
-
-// Initialize theme on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.body.classList.add(`theme-${savedTheme}`);
-    
-    const themeIcon = document.querySelector('.theme-icon');
-    if (themeIcon) {
-        themeIcon.className = savedTheme === 'light' ? 'fas fa-moon theme-icon' : 'fas fa-sun theme-icon';
-    }
-    
-    // Register service worker for PWA
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => {
-                    console.log('🚀 SW registered: ', registration);
-                    showNotification('App ready for offline use!', 'success');
-                })
-                .catch(registrationError => {
-                    console.log('❌ SW registration failed: ', registrationError);
-                });
-        });
-    }
-    
-    // Handle install prompt
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        
-        // Show install button or banner
-        const installBanner = document.createElement('div');
-        installBanner.className = 'install-banner';
-        installBanner.innerHTML = `
-            <div class="install-content">
-                <div class="install-icon">📱</div>
-                <div class="install-text">
-                    <strong>Install AgroAI</strong>
-                    <p>Get the full app experience</p>
-                </div>
-                <button class="btn btn-primary btn-sm" onclick="installApp()">Install</button>
-                <button class="btn btn-outline btn-sm" onclick="this.parentElement.parentElement.remove()">Later</button>
-            </div>
-        `;
-        
-        document.body.appendChild(installBanner);
-        
-        // Auto-hide after 10 seconds
-        setTimeout(() => {
-            if (installBanner.parentElement) {
-                installBanner.remove();
-            }
-        }, 10000);
-    });
-    
-    // Handle app installed
-    window.addEventListener('appinstalled', (evt) => {
-        console.log('🎉 AgroAI installed successfully!');
-        showNotification('AgroAI installed! Launch from your home screen.', 'success');
-    });
-});
-
-// Install app function
-async function installApp() {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        
-        if (outcome === 'accepted') {
-            console.log('✅ User accepted the install prompt');
-            showNotification('Installing AgroAI...', 'info');
-        } else {
-            console.log('❌ User dismissed the install prompt');
-        }
-        
-        deferredPrompt = null;
-        
-        // Remove install banner
-        const banner = document.querySelector('.install-banner');
-        if (banner) {
-            banner.remove();
-        }
-    }
-}
 
 // Show notification
 function showNotification(message, type = 'info') {
@@ -337,12 +28,6 @@ function showNotification(message, type = 'info') {
 function showSection(section) {
     console.log('Switching to section:', section);
     currentSection = section;
-    
-    // Close mobile nav if open
-    const navbar = document.getElementById('navbar');
-    const navMenu = document.getElementById('nav-menu');
-    navbar.classList.remove('mobile-open');
-    navMenu.classList.remove('mobile-open');
     
     // Update nav links
     document.querySelectorAll('.nav-link').forEach(link => {
@@ -375,6 +60,12 @@ function showSection(section) {
             break;
         case 'dashboard':
             loadDashboardStats();
+            break;
+        case 'chat':
+            loadChat();
+            break;
+        case 'settings':
+            loadSettings();
             break;
         default:
             console.warn('Unknown section:', section);
@@ -513,22 +204,19 @@ function animateCounter(elementId, targetValue, suffix = '') {
     }, 50);
 }
 
-// Update AI status with more detailed messages
+// Update AI status with rotating messages
 function updateAIStatus() {
     const statusMessages = [
-        '🤖 Real AI Ready',
-        '🔍 Computer Vision Active', 
-        '🧠 Neural Networks Online',
-        '📊 Image Analysis Ready',
-        '🌱 Plant Health Monitoring',
-        '🔬 Disease Detection Active',
-        '💡 Smart Recommendations',
-        '🤖 Real AI Ready'
+        'Ready for Analysis',
+        'Processing Data...',
+        'Learning Patterns...',
+        'Optimizing Models...',
+        'Monitoring Health...',
+        'Analyzing Growth...',
+        'Ready for Analysis'
     ];
     
     const statusElement = document.getElementById('aiStatusText');
-    if (!statusElement) return;
-    
     let index = 0;
     
     const updateStatus = () => {
@@ -1207,7 +895,7 @@ async function deleteCrop(cropId) {
     }
 }
 
-// Analyze crop with enhanced AI messaging
+// Analyze crop
 async function analyzeCrop(cropId) {
     const crop = crops.find(c => c.id === cropId);
     
@@ -1220,18 +908,18 @@ async function analyzeCrop(cropId) {
     const modal = document.getElementById('aiAnalysisModal');
     modal.classList.add('active');
     
-    // Enhanced status messages for real AI
+    // Animate status messages during analysis
     const statusMessages = [
-        '🤖 Initializing real AI engine...',
-        '📷 Loading computer vision models...',
-        '🔍 Preprocessing image data...',
-        '🌱 Analyzing plant morphology...',
-        '🦠 Detecting diseases and pests...',
-        '📊 Evaluating nutritional status...',
-        '🌡️ Assessing environmental stress...',
-        '💯 Calculating health metrics...',
-        '💡 Generating smart recommendations...',
-        '✅ Finalizing AI analysis report...'
+        'Initializing neural network...',
+        'Loading computer vision models...',
+        'Preprocessing image data...',
+        'Analyzing plant morphology...',
+        'Detecting diseases and pests...',
+        'Evaluating nutritional status...',
+        'Assessing environmental stress...',
+        'Calculating health metrics...',
+        'Generating personalized recommendations...',
+        'Finalizing analysis report...'
     ];
     
     const statusElement = modal.querySelector('.ai-status-text');
@@ -1242,7 +930,7 @@ async function analyzeCrop(cropId) {
             statusElement.textContent = statusMessages[messageIndex];
             messageIndex++;
         } else {
-            statusElement.textContent = '🤖 Completing real AI analysis...';
+            statusElement.textContent = 'Completing analysis...';
         }
     }, 400);
     
@@ -1257,7 +945,7 @@ async function analyzeCrop(cropId) {
         modal.classList.remove('active');
         
         if (result.success) {
-            showNotification(`🤖 Real AI analysis completed! Health: ${result.analysis.health} (${result.analysis.confidence}% confidence)`, 'success');
+            showNotification(`AI analysis completed! Confidence: ${result.analysis.confidence}% 🎯`, 'success');
             
             // Refresh data
             await loadAnalyses();
@@ -1272,13 +960,13 @@ async function analyzeCrop(cropId) {
                 }, 500);
             }
         } else {
-            showNotification('AI analysis failed: ' + (result.message || 'Please try again'), 'error');
+            showNotification('Analysis failed. Please try again.', 'error');
         }
     } catch (error) {
         clearInterval(statusInterval);
         modal.classList.remove('active');
-        showNotification('Network error during AI analysis. Please check your connection.', 'error');
-        console.error('AI Analysis error:', error);
+        showNotification('Network error during analysis. Please check your connection.', 'error');
+        console.error('Analysis error:', error);
     }
 }
 
@@ -1465,8 +1153,385 @@ document.getElementById('cropImage').addEventListener('change', function(e) {
     
     function formatFileSize(bytes) {
         if (!bytes) return '0 B';
-        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const sizes = ['B', 'KB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(1024));
         return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
     }
 });
+
+// Chat functionality
+let currentConversationId = null;
+let conversations = [];
+
+async function loadChat() {
+    try {
+        await loadConversations();
+        initializeChatEventListeners();
+    } catch (error) {
+        console.error('Error loading chat:', error);
+        showNotification('Failed to load chat', 'error');
+    }
+}
+
+async function loadConversations() {
+    try {
+        const response = await fetch('/api/chat/conversations');
+        if (response.ok) {
+            conversations = await response.json();
+            displayConversations();
+            
+            if (conversations.length > 0 && !currentConversationId) {
+                selectConversation(conversations[0].id);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading conversations:', error);
+    }
+}
+
+function displayConversations() {
+    const container = document.getElementById('conversationsList');
+    
+    if (conversations.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="padding: 40px 20px; text-align: center;">
+                <i class="fas fa-comments" style="font-size: 2rem; opacity: 0.3; margin-bottom: 12px;"></i>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">No conversations yet</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = conversations.map(conv => `
+        <div class="conversation-item ${conv.id === currentConversationId ? 'active' : ''}"
+             onclick="selectConversation('${conv.id}')">
+            <div class="conversation-title">${conv.title}</div>
+            <div class="conversation-time">${formatDate(conv.updated_at)}</div>
+        </div>
+    `).join('');
+}
+
+async function selectConversation(conversationId) {
+    currentConversationId = conversationId;
+    displayConversations(); // Update active state
+    await loadMessages(conversationId);
+}
+
+async function loadMessages(conversationId) {
+    try {
+        const response = await fetch(`/api/chat/conversations/${conversationId}/messages`);
+        if (response.ok) {
+            const messages = await response.json();
+            displayMessages(messages);
+        }
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
+}
+
+function displayMessages(messages) {
+    const container = document.getElementById('chatMessages');
+    
+    // Keep the welcome message if it's the first conversation and no messages
+    if (messages.length === 0) {
+        container.innerHTML = `
+            <div class="chat-message ai-message">
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-content">
+                    <p>👋 Hello! I'm AgroAI, your farming assistant. I can help you with:</p>
+                    <ul>
+                        <li>🌱 Crop health assessment</li>
+                        <li>🐛 Pest and disease identification</li>
+                        <li>💧 Irrigation and fertilization advice</li>
+                        <li>🌦️ Weather and seasonal planning</li>
+                        <li>🌿 Sustainable farming practices</li>
+                    </ul>
+                    <p>What would you like to know about farming today?</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = messages.map(msg => `
+        <div class="chat-message ${msg.role === 'user' ? 'user-message' : 'ai-message'}">
+            <div class="message-avatar">
+                <i class="fas ${msg.role === 'user' ? 'fa-user' : 'fa-robot'}"></i>
+            </div>
+            <div class="message-content">
+                <p>${formatMessageContent(msg.content)}</p>
+            </div>
+        </div>
+    `).join('');
+    
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+function formatMessageContent(content) {
+    // Simple markdown-like formatting for AI responses
+    return content
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>')
+        .replace(/- (.*?)(<br>|$)/g, '• $1$2');
+}
+
+async function createNewConversation() {
+    try {
+        const response = await fetch('/api/chat/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: 'New Conversation' })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                conversations.unshift(data.conversation);
+                displayConversations();
+                selectConversation(data.conversation.id);
+                showNotification('New conversation started!', 'success');
+            }
+        }
+    } catch (error) {
+        console.error('Error creating conversation:', error);
+        showNotification('Failed to create new conversation', 'error');
+    }
+}
+
+async function sendMessage(content) {
+    if (!currentConversationId) {
+        await createNewConversation();
+        if (!currentConversationId) return;
+    }
+    
+    try {
+        // Show typing indicator
+        showTypingIndicator();
+        
+        const response = await fetch(`/api/chat/conversations/${currentConversationId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Reload messages to show both user and AI messages
+                await loadMessages(currentConversationId);
+                // Update conversations list to show latest activity
+                await loadConversations();
+            }
+        } else {
+            showNotification('Failed to send message', 'error');
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        showNotification('Failed to send message', 'error');
+    } finally {
+        hideTypingIndicator();
+    }
+}
+
+function showTypingIndicator() {
+    const container = document.getElementById('chatMessages');
+    const typingDiv = document.createElement('div');
+    typingDiv.id = 'typingIndicator';
+    typingDiv.className = 'chat-message ai-message';
+    typingDiv.innerHTML = `
+        <div class="message-avatar">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="message-content">
+            <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+    `;
+    container.appendChild(typingDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+function initializeChatEventListeners() {
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const newChatBtn = document.getElementById('newChatBtn');
+    
+    if (chatForm) {
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = chatInput.value.trim();
+            if (content) {
+                chatInput.value = '';
+                await sendMessage(content);
+            }
+        });
+    }
+    
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', createNewConversation);
+    }
+}
+
+// Settings functionality
+async function loadSettings() {
+    try {
+        await loadUserProfile();
+        await loadEmailPreferences();
+        await loadAIModels();
+        await loadDataStats();
+        initializeSettingsEventListeners();
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        showNotification('Failed to load settings', 'error');
+    }
+}
+
+async function loadUserProfile() {
+    try {
+        const response = await fetch('/api/profile');
+        if (response.ok) {
+            const profile = await response.json();
+            document.getElementById('settingsUsername').value = profile.username || '';
+            document.getElementById('settingsEmail').value = profile.email || '';
+        }
+    } catch (error) {
+        console.error('Error loading user profile:', error);
+    }
+}
+
+async function loadEmailPreferences() {
+    try {
+        const response = await fetch('/api/email-preferences');
+        if (response.ok) {
+            const prefs = await response.json();
+            document.getElementById('registrationEmails').checked = prefs.registration !== false;
+            document.getElementById('weeklyDigestEmails').checked = prefs.weekly_digest !== false;
+        }
+    } catch (error) {
+        console.error('Error loading email preferences:', error);
+    }
+}
+
+async function loadAIModels() {
+    try {
+        const response = await fetch('/api/ai-models');
+        if (response.ok) {
+            const data = await response.json();
+            const select = document.getElementById('aiModelSelect');
+            select.innerHTML = data.models.map(model => 
+                `<option value="${model}" ${model === data.current ? 'selected' : ''}>${model}</option>`
+            ).join('');
+        }
+    } catch (error) {
+        console.error('Error loading AI models:', error);
+    }
+}
+
+async function loadDataStats() {
+    try {
+        const [cropsResponse, analysesResponse] = await Promise.all([
+            fetch('/api/crops'),
+            fetch('/api/analyses')
+        ]);
+        
+        if (cropsResponse.ok && analysesResponse.ok) {
+            const cropsData = await cropsResponse.json();
+            const analysesData = await analysesResponse.json();
+            
+            document.getElementById('totalCropsCount').textContent = cropsData.length;
+            document.getElementById('totalAnalysesCount').textContent = analysesData.length;
+            
+            // Estimate message count (we don't have a direct API for this yet)
+            document.getElementById('totalMessagesCount').textContent = conversations.reduce((total, conv) => total + (conv.messageCount || 0), 0);
+        }
+    } catch (error) {
+        console.error('Error loading data stats:', error);
+    }
+}
+
+async function saveEmailPreferences() {
+    try {
+        const preferences = {
+            registration: document.getElementById('registrationEmails').checked,
+            weekly_digest: document.getElementById('weeklyDigestEmails').checked
+        };
+        
+        const response = await fetch('/api/email-preferences', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ preferences })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            showNotification(data.message || 'Email preferences saved!', data.success ? 'success' : 'error');
+        }
+    } catch (error) {
+        console.error('Error saving email preferences:', error);
+        showNotification('Failed to save email preferences', 'error');
+    }
+}
+
+async function sendWeeklyDigest() {
+    try {
+        const response = await fetch('/api/send-weekly-digest', {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            showNotification(data.message, data.success ? 'success' : 'error');
+        }
+    } catch (error) {
+        console.error('Error sending weekly digest:', error);
+        showNotification('Failed to send weekly digest', 'error');
+    }
+}
+
+function exportData() {
+    // Simple data export functionality
+    const data = {
+        crops: crops,
+        analyses: analyses,
+        exportDate: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `agroai-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification('Data exported successfully!', 'success');
+}
+
+function initializeSettingsEventListeners() {
+    const saveEmailPrefsBtn = document.getElementById('saveEmailPreferencesBtn');
+    const sendWeeklyDigestBtn = document.getElementById('sendWeeklyDigestBtn');
+    
+    if (saveEmailPrefsBtn) {
+        saveEmailPrefsBtn.addEventListener('click', saveEmailPreferences);
+    }
+    
+    if (sendWeeklyDigestBtn) {
+        sendWeeklyDigestBtn.addEventListener('click', sendWeeklyDigest);
+    }
+}

@@ -1,385 +1,213 @@
-// Database initialization and connection management
-const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcryptjs');
-const path = require('path');
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-class DatabaseManager {
-    constructor() {
-        this.dbPath = path.join(__dirname, 'data', 'agroai.db');
-        this.db = null;
-        this.init();
+// Database configuration
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'agroai_db',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  charset: 'utf8mb4'
+};
+
+// Create connection pool
+const pool = mysql.createPool(dbConfig);
+
+// Test connection function
+const testConnection = async () => {
+  try {
+    const connection = await pool.getConnection();
+    console.log('✅ Database connected successfully');
+    connection.release();
+    return true;
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    return false;
+  }
+};
+
+// Execute query with error handling
+const query = async (sql, params = []) => {
+  try {
+    const [results] = await pool.execute(sql, params);
+    return results;
+  } catch (error) {
+    console.error('Database query error:', error.message);
+    throw error;
+  }
+};
+
+// User operations
+const UserDB = {
+  async create(user) {
+    const sql = `INSERT INTO users (id, username, email, password, email_preferences, created_at) 
+                 VALUES (?, ?, ?, ?, ?, ?)`;
+    const emailPrefs = JSON.stringify(user.email_preferences || {registration: true, weekly_digest: true});
+    await query(sql, [user.id, user.username, user.email, user.password, emailPrefs, user.createdAt]);
+    return user;
+  },
+
+  async findByEmail(email) {
+    const sql = `SELECT * FROM users WHERE email = ?`;
+    const results = await query(sql, [email]);
+    if (results.length > 0) {
+      const user = results[0];
+      user.email_preferences = JSON.parse(user.email_preferences || '{}');
+      return user;
     }
+    return null;
+  },
 
-    // Initialize database connection and create tables
-    init() {
-        this.db = new sqlite3.Database(this.dbPath, (err) => {
-            if (err) {
-                console.error('❌ Error opening database:', err.message);
-            } else {
-                console.log('✅ Connected to SQLite database');
-                this.createTables();
-            }
-        });
+  async findById(id) {
+    const sql = `SELECT * FROM users WHERE id = ?`;
+    const results = await query(sql, [id]);
+    if (results.length > 0) {
+      const user = results[0];
+      user.email_preferences = JSON.parse(user.email_preferences || '{}');
+      return user;
     }
+    return null;
+  },
 
-    // Create all necessary tables
-    createTables() {
-        const tables = [
-            // Users table with secure authentication
-            `CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                last_login DATETIME,
-                is_active BOOLEAN DEFAULT 1,
-                profile_image TEXT,
-                phone TEXT,
-                location TEXT
-            )`,
+  async updateEmailPreferences(userId, preferences) {
+    const sql = `UPDATE users SET email_preferences = ? WHERE id = ?`;
+    await query(sql, [JSON.stringify(preferences), userId]);
+  },
 
-            // Crops table for crop management
-            `CREATE TABLE IF NOT EXISTS crops (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                name TEXT NOT NULL,
-                type TEXT NOT NULL,
-                variety TEXT,
-                planting_date DATE,
-                area REAL,
-                location TEXT,
-                status TEXT DEFAULT 'healthy',
-                health_score INTEGER DEFAULT 100,
-                growth_stage INTEGER DEFAULT 0,
-                image_path TEXT,
-                soil_moisture REAL,
-                temperature REAL,
-                last_checked DATETIME DEFAULT CURRENT_TIMESTAMP,
-                next_watering DATE,
-                estimated_harvest DATE,
-                notes TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )`,
+  async findAll() {
+    const sql = `SELECT * FROM users`;
+    const results = await query(sql);
+    return results.map(user => {
+      user.email_preferences = JSON.parse(user.email_preferences || '{}');
+      return user;
+    });
+  }
+};
 
-            // AI Analysis table for storing analysis results
-            `CREATE TABLE IF NOT EXISTS ai_analyses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                crop_id INTEGER,
-                image_path TEXT NOT NULL,
-                analysis_result TEXT NOT NULL,
-                confidence_score REAL,
-                detected_issues TEXT,
-                recommendations TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-                FOREIGN KEY (crop_id) REFERENCES crops (id) ON DELETE SET NULL
-            )`,
+// Crop operations
+const CropDB = {
+  async create(crop) {
+    const sql = `INSERT INTO crops (id, user_id, name, type, location, planted_date, 
+                 image_url, image_name, image_size, created_at, updated_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    await query(sql, [crop.id, crop.userId, crop.name, crop.type, crop.location, 
+                     crop.plantedDate, crop.imageUrl, crop.imageName, crop.imageSize, 
+                     crop.createdAt, crop.updatedAt]);
+    return crop;
+  },
 
-            // AI Recommendations table for personalized suggestions
-            `CREATE TABLE IF NOT EXISTS ai_recommendations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                crop_id INTEGER NOT NULL,
-                recommendation_text TEXT NOT NULL,
-                priority TEXT DEFAULT 'medium',
-                category TEXT,
-                is_completed BOOLEAN DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                due_date DATE,
-                FOREIGN KEY (crop_id) REFERENCES crops (id) ON DELETE CASCADE
-            )`,
+  async findByUserId(userId) {
+    const sql = `SELECT * FROM crops WHERE user_id = ? ORDER BY created_at DESC`;
+    return await query(sql, [userId]);
+  },
 
-            // Sessions table for secure session management
-            `CREATE TABLE IF NOT EXISTS user_sessions (
-                id TEXT PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                expires_at DATETIME NOT NULL,
-                ip_address TEXT,
-                user_agent TEXT,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )`,
+  async findById(id, userId) {
+    const sql = `SELECT * FROM crops WHERE id = ? AND user_id = ?`;
+    const results = await query(sql, [id, userId]);
+    return results.length > 0 ? results[0] : null;
+  },
 
-            // Email logs table for tracking sent emails
-            `CREATE TABLE IF NOT EXISTS email_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                email_type TEXT NOT NULL,
-                subject TEXT,
-                sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                status TEXT DEFAULT 'sent',
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )`
-        ];
+  async update(id, userId, updates) {
+    const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(updates);
+    const sql = `UPDATE crops SET ${fields}, updated_at = NOW() WHERE id = ? AND user_id = ?`;
+    await query(sql, [...values, id, userId]);
+  },
 
-        // Run all table creation queries sequentially
-        this.db.serialize(() => {
-            tables.forEach((tableSQL) => {
-                this.db.run(tableSQL);
-            });
-            
-            console.log('📊 Database tables created successfully');
-            // Add a delay before seeding to ensure tables are ready
-            setTimeout(() => {
-                this.seedSampleData();
-            }, 1000);
-        });
-    }
+  async delete(id, userId) {
+    const sql = `DELETE FROM crops WHERE id = ? AND user_id = ?`;
+    const result = await query(sql, [id, userId]);
+    return result.affectedRows > 0;
+  }
+};
 
-    // Seed some sample data for testing
-    seedSampleData() {
-        // Check if we already have users
-        this.db.get("SELECT COUNT(*) as count FROM users", (err, row) => {
-            if (err) {
-                console.error('❌ Error checking users:', err);
-                return;
-            }
+// Analysis operations
+const AnalysisDB = {
+  async create(analysis) {
+    const sql = `INSERT INTO analyses (id, crop_id, user_id, image_url, image_name, 
+                 confidence, health, disease, recommendation, analysis_date, 
+                 processing_time, ai_model, raw_response) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    await query(sql, [analysis.id, analysis.cropId, analysis.userId, analysis.imageUrl, 
+                     analysis.imageName, analysis.confidence, analysis.health, 
+                     analysis.disease, analysis.recommendation, analysis.analysisDate, 
+                     analysis.processingTime, analysis.ai_model || 'hackclub-ai',
+                     JSON.stringify(analysis.raw_response || {})]);
+    return analysis;
+  },
 
-            if (row.count === 0) {
-                console.log('🌱 Seeding sample data...');
-                
-                // Create sample user
-                const samplePassword = bcrypt.hashSync('demo123', 10);
-                this.db.run(`
-                    INSERT INTO users (username, email, password_hash, location) 
-                    VALUES (?, ?, ?, ?)
-                `, ['demo_farmer', 'demo@agroai.com', samplePassword, 'Demo Farm Location'], (err) => {
-                    if (err) {
-                        console.error('❌ Error creating sample user:', err);
-                        return;
-                    }
-                    
-                    // Get the user ID and create sample crops
-                    this.db.get("SELECT id FROM users WHERE username = 'demo_farmer'", (err, user) => {
-                        if (user) {
-                            this.createSampleCrops(user.id);
-                        }
-                    });
-                });
-            }
-        });
-    }
+  async findByUserId(userId) {
+    const sql = `SELECT * FROM analyses WHERE user_id = ? ORDER BY analysis_date DESC`;
+    return await query(sql, [userId]);
+  },
 
-    createSampleCrops(userId) {
-        const sampleCrops = [
-            {
-                name: 'Heritage Tomato Field A',
-                type: 'tomato',
-                variety: 'Roma',
-                planting_date: '2025-06-15',
-                area: 3.2,
-                location: 'North Field, Section A',
-                status: 'healthy',
-                health_score: 94,
-                growth_stage: 78,
-                soil_moisture: 72,
-                temperature: 24,
-                next_watering: '2025-09-14',
-                estimated_harvest: '2025-11-20',
-                notes: 'Excellent growth rate, no signs of disease.'
-            },
-            {
-                name: 'Golden Wheat Fields',
-                type: 'wheat',
-                variety: 'Winter Wheat',
-                planting_date: '2025-05-01',
-                area: 12.5,
-                location: 'South Field, Sections B-D',
-                status: 'warning',
-                health_score: 76,
-                growth_stage: 85,
-                soil_moisture: 58,
-                temperature: 22,
-                next_watering: '2025-09-13',
-                estimated_harvest: '2025-10-15',
-                notes: 'Moderate drought stress detected.'
-            },
-            {
-                name: 'Sweet Corn Paradise',
-                type: 'corn',
-                variety: 'Sugar Enhanced',
-                planting_date: '2025-04-20',
-                area: 5.8,
-                location: 'East Field, Section E',
-                status: 'healthy',
-                health_score: 91,
-                growth_stage: 92,
-                soil_moisture: 78,
-                temperature: 26,
-                next_watering: '2025-09-15',
-                estimated_harvest: '2025-10-30',
-                notes: 'Exceptional growth, approaching tasseling stage.'
-            }
-        ];
+  async findByCropId(cropId) {
+    const sql = `SELECT * FROM analyses WHERE crop_id = ? ORDER BY analysis_date DESC`;
+    return await query(sql, [cropId]);
+  }
+};
 
-        sampleCrops.forEach(crop => {
-            this.db.run(`
-                INSERT INTO crops (
-                    user_id, name, type, variety, planting_date, area, location, 
-                    status, health_score, growth_stage, soil_moisture, temperature,
-                    next_watering, estimated_harvest, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                userId, crop.name, crop.type, crop.variety, crop.planting_date,
-                crop.area, crop.location, crop.status, crop.health_score,
-                crop.growth_stage, crop.soil_moisture, crop.temperature,
-                crop.next_watering, crop.estimated_harvest, crop.notes
-            ]);
-        });
+// Chat operations
+const ChatDB = {
+  async createConversation(conversation) {
+    const sql = `INSERT INTO chat_conversations (id, user_id, title, created_at, updated_at) 
+                 VALUES (?, ?, ?, ?, ?)`;
+    await query(sql, [conversation.id, conversation.userId, conversation.title, 
+                     conversation.createdAt, conversation.updatedAt]);
+    return conversation;
+  },
 
-        console.log('🌾 Sample crops created successfully');
-    }
+  async findConversationsByUserId(userId) {
+    const sql = `SELECT * FROM chat_conversations WHERE user_id = ? ORDER BY updated_at DESC`;
+    return await query(sql, [userId]);
+  },
 
-    // User authentication methods
-    async createUser(username, email, password) {
-        return new Promise((resolve, reject) => {
-            const passwordHash = bcrypt.hashSync(password, 10);
-            this.db.run(
-                'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-                [username, email, passwordHash],
-                function(err) {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        resolve({ id: this.lastID, username, email });
-                    }
-                }
-            );
-        });
-    }
+  async addMessage(message) {
+    const sql = `INSERT INTO chat_messages (id, conversation_id, user_id, role, content, created_at) 
+                 VALUES (?, ?, ?, ?, ?, ?)`;
+    await query(sql, [message.id, message.conversationId, message.userId, 
+                     message.role, message.content, message.createdAt]);
+    
+    // Update conversation timestamp
+    await query(`UPDATE chat_conversations SET updated_at = ? WHERE id = ?`, 
+                [message.createdAt, message.conversationId]);
+    return message;
+  },
 
-    async authenticateUser(email, password) {
-        return new Promise((resolve, reject) => {
-            this.db.get(
-                'SELECT * FROM users WHERE email = ? AND is_active = 1',
-                [email],
-                (err, user) => {
-                    if (err) {
-                        reject(err);
-                    } else if (!user) {
-                        resolve(null);
-                    } else {
-                        const isValid = bcrypt.compareSync(password, user.password_hash);
-                        if (isValid) {
-                            // Update last login
-                            this.db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
-                            resolve({
-                                id: user.id,
-                                username: user.username,
-                                email: user.email,
-                                created_at: user.created_at,
-                                last_login: user.last_login
-                            });
-                        } else {
-                            resolve(null);
-                        }
-                    }
-                }
-            );
-        });
-    }
+  async getMessages(conversationId) {
+    const sql = `SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC`;
+    return await query(sql, [conversationId]);
+  }
+};
 
-    // Crop management methods
-    async getUserCrops(userId) {
-        return new Promise((resolve, reject) => {
-            this.db.all(
-                'SELECT * FROM crops WHERE user_id = ? ORDER BY created_at DESC',
-                [userId],
-                (err, rows) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        resolve(rows);
-                    }
-                }
-            );
-        });
-    }
+// Email log operations
+const EmailLogDB = {
+  async create(emailLog) {
+    const sql = `INSERT INTO email_logs (id, user_id, email_type, recipient_email, 
+                 subject, sent_at, status, error_message) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    await query(sql, [emailLog.id, emailLog.userId, emailLog.emailType, 
+                     emailLog.recipientEmail, emailLog.subject, emailLog.sentAt, 
+                     emailLog.status, emailLog.errorMessage]);
+    return emailLog;
+  },
 
-    async createCrop(userId, cropData) {
-        return new Promise((resolve, reject) => {
-            const {
-                name, type, variety, planting_date, area, location,
-                soil_moisture, temperature, estimated_harvest, notes
-            } = cropData;
+  async updateStatus(id, status, errorMessage = null) {
+    const sql = `UPDATE email_logs SET status = ?, error_message = ? WHERE id = ?`;
+    await query(sql, [status, errorMessage, id]);
+  }
+};
 
-            this.db.run(`
-                INSERT INTO crops (
-                    user_id, name, type, variety, planting_date, area, location,
-                    soil_moisture, temperature, estimated_harvest, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                userId, name, type, variety, planting_date, area, location,
-                soil_moisture, temperature, estimated_harvest, notes
-            ], function(err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve({ id: this.lastID, ...cropData });
-                }
-            });
-        });
-    }
-
-    // AI Analysis methods
-    async saveAnalysis(userId, analysisData) {
-        return new Promise((resolve, reject) => {
-            const {
-                crop_id, image_path, analysis_result, confidence_score,
-                detected_issues, recommendations
-            } = analysisData;
-
-            this.db.run(`
-                INSERT INTO ai_analyses (
-                    user_id, crop_id, image_path, analysis_result, confidence_score,
-                    detected_issues, recommendations
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            `, [
-                userId, crop_id, image_path, analysis_result, confidence_score,
-                detected_issues, recommendations
-            ], function(err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve({ id: this.lastID, ...analysisData });
-                }
-            });
-        });
-    }
-
-    async getUserAnalyses(userId) {
-        return new Promise((resolve, reject) => {
-            this.db.all(`
-                SELECT a.*, c.name as crop_name, c.type as crop_type
-                FROM ai_analyses a
-                LEFT JOIN crops c ON a.crop_id = c.id
-                WHERE a.user_id = ?
-                ORDER BY a.created_at DESC
-            `, [userId], (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(rows);
-                }
-            });
-        });
-    }
-
-    // Close database connection
-    close() {
-        if (this.db) {
-            this.db.close((err) => {
-                if (err) {
-                    console.error('❌ Error closing database:', err.message);
-                } else {
-                    console.log('✅ Database connection closed');
-                }
-            });
-        }
-    }
-}
-
-module.exports = DatabaseManager;
+module.exports = {
+  pool,
+  query,
+  testConnection,
+  UserDB,
+  CropDB,
+  AnalysisDB,
+  ChatDB,
+  EmailLogDB
+};
