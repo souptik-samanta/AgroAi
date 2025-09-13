@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroAI - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <i class="fas fa-seedling"></i>
+            <span>AgroAI</span>
+        </div>
+        <div class="nav-menu">
+            <a href="#dashboard" class="nav-link active" onclick="showSection('dashboard')">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </a>
+            <a href="#crops" class="nav-link" onclick="showSection('crops')">
+                <i class="fas fa-leaf"></i> My Crops
+            </a>
+            <a href="#gallery" class="nav-link" onclick="showSection('gallery')">
+                <i class="fas fa-images"></i> Gallery
+            </a>
+            <a href="#analyses" class="nav-link" onclick="showSection('analyses')">
+                <i class="fas fa-microscope"></i> AI Analysis
+            </a>
+            <div class="nav-user">
+                <span id="username">Loading...</span>
+                <button onclick="logout()" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="content-section active">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-line"></i> Dashboard</h2>
+                <p>Monitor your crops with AI-powered insights and real-time analytics</p>
+            </div>
+
+            <div class="dashboard-section">
+                <!-- Stats Cards -->
+                <div class="stats-container">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-seedling"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalCrops">0</h3>
+                                <p>Total Crops</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="healthyCrops">0</h3>
+                                <p>Healthy Crops</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-microscope"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalAnalyses">0</h3>
+                                <p>AI Analyses</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="avgConfidence">0%</h3>
+                                <p>Avg Confidence</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Status -->
+                <div class="ai-showcase">
+                    <h3><i class="fas fa-robot"></i> AI System Status</h3>
+                    <div class="ai-status">
+                        <div class="ai-indicator">
+                            <div class="pulse"></div>
+                            <span style="font-size: 1.1rem; font-weight: 600;">Neural Network Active</span>
+                        </div>
+                        <div class="ai-metrics">
+                            <div class="ai-metric">
+                                <div class="ai-metric-label">Model Accuracy</div>
+                                <div class="ai-metric-value">96.7%</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-label">Processing Speed</div>
+                                <div class="ai-metric-value">1.8s</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-label">Confidence Threshold</div>
+                                <div class="ai-metric-value">85%</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-label">Status</div>
+                                <div class="ai-metric-value" id="aiStatusText">Ready</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- My Crops Section -->
+        <section id="crops" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-leaf"></i> My Crops</h2>
+                <p>Manage and monitor your crop collection</p>
+            </div>
+
+            <div class="crops-section">
+                <div class="gallery-header">
+                    <button onclick="showAddCropModal()" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add New Crop
+                    </button>
+                </div>
+
+                <div id="cropsGrid" class="content-grid">
+                    <!-- Crops will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Gallery Section -->
+        <section id="gallery" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-images"></i> Crop Gallery</h2>
+                <p>Browse all your crops in an organized gallery view</p>
+            </div>
+
+            <div class="gallery-header">
+                <div class="gallery-controls">
+                    <div class="view-toggle">
+                        <button class="active" onclick="setGalleryView('grid')">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button onclick="setGalleryView('list')">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                    <select class="filter-select" id="cropTypeFilter" onchange="filterGallery()">
+                        <option value="">All Crop Types</option>
+                        <option value="wheat">Wheat</option>
+                        <option value="corn">Corn</option>
+                        <option value="rice">Rice</option>
+                        <option value="tomato">Tomato</option>
+                        <option value="potato">Potato</option>
+                        <option value="soybean">Soybean</option>
+                        <option value="cotton">Cotton</option>
+                        <option value="barley">Barley</option>
+                    </select>
+                </div>
+                <button onclick="showAddCropModal()" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Crop
+                </button>
+            </div>
+
+            <div id="galleryGrid" class="gallery-grid grid-view">
+                <!-- Gallery items will be loaded here -->
+            </div>
+        </section>
+
+        <!-- AI Analyses Section -->
+        <section id="analyses" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-microscope"></i> AI Analysis Results</h2>
+                <p>Review detailed AI-powered health assessments and recommendations</p>
+            </div>
+
+            <div class="analyses-section">
+                <div id="analysesContainer">
+                    <!-- Analyses will be loaded here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Add Crop Modal -->
+    <div id="addCropModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> Add New Crop</h3>
+                <span class="close" onclick="closeAddCropModal()">&times;</span>
+            </div>
+            <form id="addCropForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="cropName">Crop Name *</label>
+                    <input type="text" id="cropName" name="name" placeholder="e.g., North Field Wheat" required>
+                </div>
+                <div class="form-group">
+                    <label for="cropType">Crop Type *</label>
+                    <select id="cropType" name="type" required>
+                        <option value="">Select crop type</option>
+                        <option value="wheat">🌾 Wheat</option>
+                        <option value="corn">🌽 Corn</option>
+                        <option value="rice">🌾 Rice</option>
+                        <option value="tomato">🍅 Tomato</option>
+                        <option value="potato">🥔 Potato</option>
+                        <option value="soybean">🫘 Soybean</option>
+                        <option value="cotton">🌿 Cotton</option>
+                        <option value="barley">🌾 Barley</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="cropLocation">Location *</label>
+                    <input type="text" id="cropLocation" name="location" placeholder="e.g., Field A-1, Greenhouse B" required>
+                </div>
+                <div class="form-group">
+                    <label for="plantedDate">Planted Date *</label>
+                    <input type="date" id="plantedDate" name="plantedDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="cropImage">Crop Image</label>
+                    <input type="file" id="cropImage" name="image" accept="image/*">
+                    <small style="color: var(--text-muted); font-size: 14px; margin-top: 8px; display: block;">
+                        <i class="fas fa-info-circle"></i> Upload an image for instant AI analysis
+                    </small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeAddCropModal()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Add Crop
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- AI Analysis Modal -->
+    <div id="aiAnalysisModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-brain"></i> AI Analysis in Progress</h3>
+            </div>
+            <div class="ai-analysis-content">
+                <div class="ai-loader">
+                    <div class="neural-network">
+                        <div class="node"></div>
+                        <div class="node"></div>
+                        <div class="node"></div>
+                        <div class="node"></div>
+                        <div class="node"></div>
+                    </div>
+                    <h3 style="color: var(--primary-color); margin-bottom: 16px;">Analyzing Crop Health...</h3>
+                    <p class="ai-status-text">Initializing neural network...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crop Detail Modal -->
+    <div id="cropDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-leaf"></i> <span id="cropDetailName">Crop Details</span></h3>
+                <span class="close" onclick="closeCropDetailModal()">&times;</span>
+            </div>
+            <div id="cropDetailContent">
+                <!-- Crop details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

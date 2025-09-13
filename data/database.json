@@ -1,0 +1,13 @@
+{
+  "users": [
+    {
+      "id": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "username": "Demo User",
+      "email": "demo@agroai.com",
+      "password": "$2a$10$hCFY/o.dXj/mCA7HNe6KxeWOIefdQ36KUrDUP6YsF4AQneQLjcxMm",
+      "createdAt": "2025-09-13T07:10:39.110Z"
+    }
+  ],
+  "crops": [],
+  "analyses": []
+}
