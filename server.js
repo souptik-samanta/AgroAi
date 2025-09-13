@@ -187,6 +187,21 @@ app.get('/api/auth/status', (req, res) => {
   }
 });
 
+// Get user profile
+app.get('/api/profile', requireAuth, (req, res) => {
+  try {
+    res.json({
+      success: true,
+      username: req.session.user.username,
+      email: req.session.user.email,
+      id: req.session.user.id
+    });
+  } catch (error) {
+    console.error('Profile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load profile' });
+  }
+});
+
 // ===== CROP MANAGEMENT ROUTES =====
 
 // Get user's crops
@@ -292,6 +307,29 @@ app.get('/api/analyses', requireAuth, async (req, res) => {
 });
 
 // ===== DASHBOARD DATA ROUTES =====
+
+// Get dashboard statistics (alternative endpoint)
+app.get('/api/dashboard-stats', requireAuth, async (req, res) => {
+  try {
+    const crops = await database.getUserCrops(req.session.user.id);
+    const analyses = await database.getUserAnalyses(req.session.user.id);
+
+    const stats = {
+      totalCrops: crops.length,
+      healthyCrops: crops.filter(c => c.status === 'healthy').length,
+      warningCrops: crops.filter(c => c.status === 'warning' || c.status === 'critical').length,
+      totalAnalyses: analyses.length,
+      avgConfidence: analyses.length > 0 
+        ? Math.round(analyses.reduce((sum, a) => sum + (a.confidence_score || 0), 0) / analyses.length * 100)
+        : 0
+    };
+
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.json({ success: false, message: 'Failed to fetch statistics' });
+  }
+});
 
 // Get dashboard statistics
 app.get('/api/dashboard/stats', requireAuth, async (req, res) => {

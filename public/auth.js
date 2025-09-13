@@ -69,10 +69,13 @@ function validatePassword(password) {
 // Form submissions
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    console.log('🔐 Login form submitted');
     
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData);
     const submitButton = e.target.querySelector('button[type="submit"]');
+    
+    console.log('📋 Form data:', data);
     
     // Basic validation
     if (!data.email || !data.password) {
@@ -92,6 +95,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
     
     try {
+        console.log('📡 Sending login request...');
         const response = await fetch('/api/login', {
             method: 'POST',
             headers: {
@@ -100,7 +104,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             body: JSON.stringify(data)
         });
         
+        console.log('📨 Response received:', response.status);
         const result = await response.json();
+        console.log('📄 Response data:', result);
         
         if (result.success) {
             showNotification('Login successful! Redirecting...', 'success');
@@ -111,8 +117,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             showNotification(result.message || 'Invalid email or password', 'error');
         }
     } catch (error) {
+        console.error('❌ Login error:', error);
         showNotification('Network error. Please check your connection and try again.', 'error');
-        console.error('Login error:', error);
     } finally {
         submitButton.classList.remove('loading');
         submitButton.disabled = false;
@@ -261,7 +267,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showNotification('Welcome to AgroAI! Use the demo account or create your own.', 'info');
     }, 500);
 });
-}
 
 function showRegister() {
     currentForm = 'register';
@@ -279,72 +284,6 @@ function fillDemoCredentials() {
     showLogin();
     showNotification('Demo credentials filled! Click login to continue.', 'info');
 }
-
-// Form submissions
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    
-    try {
-        const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('Login successful!', 'success');
-            setTimeout(() => {
-                window.location.href = '/dashboard.html';
-            }, 1000);
-        } else {
-            showNotification(result.message || 'Login failed', 'error');
-        }
-    } catch (error) {
-        showNotification('Network error. Please try again.', 'error');
-    }
-});
-
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    
-    if (data.password.length < 6) {
-        showNotification('Password must be at least 6 characters long', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('Registration successful! Redirecting...', 'success');
-            setTimeout(() => {
-                window.location.href = '/dashboard.html';
-            }, 1000);
-        } else {
-            showNotification(result.message || 'Registration failed', 'error');
-        }
-    } catch (error) {
-        showNotification('Network error. Please try again.', 'error');
-    }
-});
 
 // Create demo user on first load
 async function createDemoUser() {

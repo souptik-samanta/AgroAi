@@ -912,25 +912,37 @@ h3 {
 }
 
 .auth-header .logo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-    position: relative;
-    z-index: 1;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: var(--spacing-md) !important;
+    margin-bottom: var(--spacing-md) !important;
+    position: relative !important;
+    z-index: 1 !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    padding: var(--spacing-lg) !important;
+    border-radius: var(--border-radius) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
 .auth-header .logo i {
-    font-size: 3rem;
+    font-size: 3rem !important;
+    color: #00ff88 !important; /* Bright green for visibility */
     animation: glow 3s ease-in-out infinite;
+    display: inline-block !important;
+    text-shadow: 0 0 20px rgba(0, 255, 136, 0.6) !important;
 }
 
 .auth-header h1 {
-    font-size: 2.5rem;
-    margin: 0;
-    position: relative;
-    z-index: 1;
+    font-size: 2.5rem !important;
+    margin: 0 !important;
+    position: relative !important;
+    z-index: 1 !important;
+    color: #ffffff !important; /* Pure white for contrast */
+    display: inline-block !important;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8) !important;
+    font-weight: 800 !important;
 }
 
 .auth-header p {
