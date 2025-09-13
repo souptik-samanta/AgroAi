@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 // Import our custom modules
-const { testConnection, UserDB, CropDB, AnalysisDB, ChatDB } = require('./database');
+const { UserDB, CropDB, AnalysisDB, ChatDB } = require('./database');
 const hackclubAI = require('./hackclub-ai');
 const emailService = require('./email-service');
 
@@ -77,6 +77,10 @@ const requireAuth = (req, res, next) => {
   if (req.session.userId) {
     next();
   } else {
+    // Check if it's an API request
+    if (req.path.startsWith('/api/')) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
     res.redirect('/login.html');
   }
 };
@@ -95,6 +99,10 @@ app.post('/api/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
     
+    if (!username || !email || !password) {
+      return res.json({ success: false, message: 'Please fill in all required fields' });
+    }
+    
     // Check if user exists
     const existingUser = await UserDB.findByEmail(email);
     if (existingUser) {
@@ -103,19 +111,20 @@ app.post('/api/register', async (req, res) => {
     
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = {
-      id: uuidv4(),
-      username,
       email,
-      password: hashedPassword,
-      email_preferences: { registration: true, weekly_digest: true },
-      createdAt: new Date().toISOString()
+      password_hash: hashedPassword,
+      full_name: username,
+      phone: null,
+      location: null,
+      farm_size: null,
+      crop_types: null
     };
     
-    await UserDB.create(newUser);
-    req.session.userId = newUser.id;
+    const createdUser = await UserDB.create(newUser);
+    req.session.userId = createdUser.id;
     
     // Send registration email
-    await emailService.sendRegistrationEmail(newUser);
+    await emailService.sendRegistrationEmail({ email, full_name: username, id: createdUser.id });
     
     res.json({ success: true });
   } catch (error) {
@@ -128,12 +137,16 @@ app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
+    if (!email || !password) {
+      return res.json({ success: false, message: 'Please fill in all fields' });
+    }
+    
     const user = await UserDB.findByEmail(email);
     if (!user) {
       return res.json({ success: false, message: 'Invalid credentials' });
     }
     
-    const validPassword = await bcrypt.compare(password, user.password);
+    const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.json({ success: false, message: 'Invalid credentials' });
     }
@@ -198,61 +211,57 @@ app.post('/api/crops', requireAuth, upload.single('image'), async (req, res) => 
         message: 'All fields (name, type, location, planted date) are required' 
       });
     }
+
+    if (!req.file) {
+      return res.json({ 
+        success: false, 
+        message: 'Image is required' 
+      });
+    }
     
     const newCrop = {
-      id: uuidv4(),
-      userId: req.session.userId,
-      name: name.trim(),
-      type: type.toLowerCase(),
+      user_id: req.session.userId,
+      image_filename: req.file.filename,
+      crop_type: type.toLowerCase(),
       location: location.trim(),
-      plantedDate,
-      imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
-      imageName: req.file ? req.file.filename : null,
-      imageSize: req.file ? req.file.size : null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      planting_date: plantedDate,
+      growth_stage: 'seedling',
+      notes: `${name.trim()} - uploaded on ${new Date().toLocaleDateString()}`
     };
     
-    await CropDB.create(newCrop);
+    const createdCrop = await CropDB.create(newCrop);
+    console.log('🌱 Created crop:', createdCrop.id, 'for user:', req.session.userId);
     
-    // Generate AI analysis if image is provided
-    if (req.file) {
-      const imageDescription = generateImageDescription(type, req.file.filename);
-      const aiAnalysis = await hackclubAI.analyzePhoto(imageDescription, type);
-      
-      const analysis = {
-        id: uuidv4(),
-        cropId: newCrop.id,
-        userId: req.session.userId,
-        imageUrl: newCrop.imageUrl,
-        imageName: newCrop.imageName,
-        confidence: aiAnalysis.confidence,
-        health: aiAnalysis.health,
-        disease: aiAnalysis.disease,
-        recommendation: aiAnalysis.recommendation,
-        analysisDate: aiAnalysis.analysisDate,
-        processingTime: aiAnalysis.processingTime,
-        ai_model: aiAnalysis.ai_model,
-        raw_response: aiAnalysis.raw_response
-      };
-      
-      await AnalysisDB.create(analysis);
-      
-      // Send analysis complete email (async)
-      const user = await UserDB.findById(req.session.userId);
-      if (user) {
-        emailService.sendAnalysisCompleteEmail(user, newCrop, analysis);
-      }
-      
-      console.log(`✅ Crop "${name}" added with AI analysis (${req.file.filename})`);
-    } else {
-      console.log(`✅ Crop "${name}" added without image`);
+    // Generate AI analysis
+    const imageDescription = generateImageDescription(type, req.file.filename);
+    const aiAnalysis = await hackclubAI.analyzePhoto(imageDescription, type);
+    
+    const analysis = {
+      crop_id: createdCrop.id,
+      user_id: req.session.userId,
+      ai_analysis: aiAnalysis.analysis || 'No analysis available',
+      health_score: aiAnalysis.health || 85,
+      recommendations: aiAnalysis.recommendations || 'Continue monitoring growth',
+      issues_detected: aiAnalysis.disease || 'None detected',
+      confidence_score: aiAnalysis.confidence || 0.85,
+      analysis_model: 'hackclub-ai'
+    };
+
+    console.log('🔍 Creating analysis for crop:', analysis.crop_id, 'user:', analysis.user_id);
+    await AnalysisDB.create(analysis);
+    
+    // Send analysis complete email (async)
+    const user = await UserDB.findById(req.session.userId);
+    if (user) {
+      emailService.sendAnalysisCompleteEmail(user, createdCrop, analysis);
     }
+    
+    console.log(`✅ Crop "${type}" added with AI analysis (${req.file.filename})`);
     
     res.json({ 
       success: true, 
-      crop: newCrop,
-      message: req.file ? 'Crop added with AI analysis!' : 'Crop added successfully!'
+      crop: createdCrop,
+      message: 'Crop added with AI analysis!'
     });
     
   } catch (error) {
@@ -304,19 +313,14 @@ app.post('/api/crops/:id/upload-image', requireAuth, upload.single('image'), asy
     const aiAnalysis = await hackclubAI.analyzePhoto(imageDescription, crop.type);
     
     const analysis = {
-      id: uuidv4(),
-      cropId: crop.id,
-      userId: req.session.userId,
-      imageUrl: updates.image_url,
-      imageName: req.file.filename,
-      confidence: aiAnalysis.confidence,
-      health: aiAnalysis.health,
-      disease: aiAnalysis.disease,
-      recommendation: aiAnalysis.recommendation,
-      analysisDate: aiAnalysis.analysisDate,
-      processingTime: aiAnalysis.processingTime,
-      ai_model: aiAnalysis.ai_model,
-      raw_response: aiAnalysis.raw_response
+      crop_id: crop.id,
+      user_id: req.session.userId,
+      ai_analysis: JSON.stringify(aiAnalysis),
+      health_score: aiAnalysis.confidence || 0,
+      recommendations: aiAnalysis.recommendation || '',
+      issues_detected: aiAnalysis.disease || 'No issues detected',
+      confidence_score: aiAnalysis.confidence || 0,
+      analysis_model: aiAnalysis.ai_model || 'hackclub-ai'
     };
     
     await AnalysisDB.create(analysis);
@@ -447,7 +451,8 @@ app.get('/api/profile', requireAuth, async (req, res) => {
   try {
     const user = await UserDB.findById(req.session.userId);
     if (user) {
-      const { password, ...userProfile } = user;
+      const { password_hash, ...userProfile } = user;
+      userProfile.isAdmin = (user.email === 'admin' || user.email === 'admin@s.com'); // Add admin flag
       res.json(userProfile);
     } else {
       res.status(404).json({ success: false, message: 'User not found' });
@@ -486,7 +491,7 @@ app.get('/api/dashboard-stats', requireAuth, async (req, res) => {
 // Chat routes
 app.get('/api/chat/conversations', requireAuth, async (req, res) => {
   try {
-    const conversations = await ChatDB.findConversationsByUserId(req.session.userId);
+    const conversations = await ChatDB.getConversations(req.session.userId);
     res.json(conversations);
   } catch (error) {
     console.error('Error fetching conversations:', error);
@@ -498,15 +503,7 @@ app.post('/api/chat/conversations', requireAuth, async (req, res) => {
   try {
     const { title } = req.body;
     
-    const conversation = {
-      id: uuidv4(),
-      userId: req.session.userId,
-      title: title || 'New Conversation',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    await ChatDB.createConversation(conversation);
+    const conversation = await ChatDB.createConversation(req.session.userId, title || 'New Conversation');
     res.json({ success: true, conversation });
   } catch (error) {
     console.error('Error creating conversation:', error);
@@ -639,12 +636,8 @@ app.get('/api/ai-models', async (req, res) => {
 // Initialize app
 const startServer = async () => {
   try {
-    // Test database connection
-    const dbConnected = await testConnection();
-    if (!dbConnected) {
-      console.error('❌ Failed to connect to database. Please check your configuration.');
-      process.exit(1);
-    }
+    // SQLite database connection is handled automatically in database.js
+    console.log('🚀 Starting AgroAI server...');
     
     // Create directories
     createDirs();

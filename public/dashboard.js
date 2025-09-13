@@ -65,6 +65,12 @@ function showSection(section) {
             loadChat();
             break;
         case 'settings':
+            // Check if user is admin before loading settings
+            if (!userProfile || !userProfile.isAdmin) {
+                showNotification('Access denied. Settings are only available to administrators.', 'error');
+                showSection('dashboard'); // Redirect to dashboard
+                return;
+            }
             loadSettings();
             break;
         default:
@@ -88,7 +94,16 @@ async function loadUserProfile() {
         const response = await fetch('/api/profile');
         if (response.ok) {
             userProfile = await response.json();
-            document.getElementById('username').textContent = userProfile.username;
+            document.getElementById('username').textContent = userProfile.full_name || userProfile.email;
+            
+            // Show settings tab only for admin users
+            const settingsTab = document.getElementById('settings-tab');
+            if (userProfile.isAdmin) {
+                settingsTab.style.display = 'block';
+                console.log('👑 Admin access granted - Settings tab visible');
+            } else {
+                settingsTab.style.display = 'none';
+            }
         } else {
             window.location.href = '/login.html';
         }

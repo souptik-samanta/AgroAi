@@ -6,11 +6,11 @@ require('dotenv').config();
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        pass: process.env.EMAIL_APP_PASSWORD
       }
     });
 
@@ -19,19 +19,10 @@ class EmailService {
   }
 
   async sendEmail(to, subject, htmlContent, userId, emailType = 'custom') {
-    const emailLogId = uuidv4();
-    
     try {
       // Log email attempt
-      await EmailLogDB.create({
-        id: emailLogId,
-        userId: userId,
-        emailType: emailType,
-        recipientEmail: to,
-        subject: subject,
-        sentAt: new Date().toISOString(),
-        status: 'pending'
-      });
+      const emailLog = await EmailLogDB.logEmail(userId, emailType, subject, 'pending');
+      const emailLogId = emailLog.id;
 
       const mailOptions = {
         from: this.fromAddress,
@@ -49,7 +40,12 @@ class EmailService {
 
     } catch (error) {
       console.error(`❌ Failed to send email to ${to}:`, error.message);
-      await EmailLogDB.updateStatus(emailLogId, 'failed', error.message);
+      // Try to update status if emailLogId exists
+      try {
+        if (emailLogId) await EmailLogDB.updateStatus(emailLogId, 'failed');
+      } catch (logError) {
+        console.error('Failed to update email log:', logError.message);
+      }
       return false;
     }
   }
@@ -321,9 +317,10 @@ class EmailService {
         const users = await UserDB.findAll();
         
         for (const user of users) {
-          const emailPrefs = user.email_preferences || {};
-          if (emailPrefs.weekly_digest !== false) {
+          // Check if user has weekly digest enabled (default: true)
+          if (user.weekly_digest_enabled !== 0) {
             await this.sendWeeklyDigest(user);
+            console.log(`📧 Weekly digest sent to ${user.email}`);
             // Add small delay to avoid overwhelming email service
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
@@ -334,6 +331,8 @@ class EmailService {
         console.error('❌ Weekly digest job failed:', error.message);
       }
     });
+    
+    console.log('📅 Weekly digest scheduled for Sundays at 9 AM');
   }
 
   // Manual trigger for weekly digest (for testing or immediate send)
