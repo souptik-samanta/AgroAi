@@ -186,6 +186,100 @@
       "recommendation": "Apply fungicide treatment",
       "analysisDate": "2025-09-13T07:41:22.520Z",
       "processingTime": "2.40s"
+    },
+    {
+      "id": "5d4a0f40-6d0c-4288-8071-7bccd1902088",
+      "cropId": "c6c3ea14-77c6-4f1b-a3ca-19e4844f771e",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749030065-645961306.jpg",
+      "imageName": "crop-1757749030065-645961306.jpg",
+      "confidence": 75,
+      "health": "Good",
+      "disease": "Healthy",
+      "diseaseConfidence": 70,
+      "recommendation": "Continue monitoring plant health and maintain proper care routine.",
+      "analysisDate": "2025-09-13T08:05:06.817Z",
+      "processingTime": "1.2s",
+      "features": {
+        "greenRatio": 45,
+        "brownRatio": 10,
+        "yellowRatio": 15,
+        "avgBrightness": 120,
+        "avgRed": 100,
+        "avgGreen": 130,
+        "avgBlue": 90,
+        "imageSize": {
+          "width": 224,
+          "height": 224
+        },
+        "totalPixels": 50176
+      }
+    },
+    {
+      "id": "dc71ca7d-7b0f-4888-8e6d-fd04e259bf99",
+      "cropId": "91574ece-bb53-49e7-a0bf-bb73e85b8ed3",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749045542-954856946.jpg",
+      "imageName": "crop-1757749045542-954856946.jpg",
+      "confidence": 0,
+      "health": "Invalid Image",
+      "disease": "Image Validation Failed",
+      "diseaseConfidence": 0,
+      "recommendation": "Image rejected: Failed to validate image. Please upload a clear photo of your corn crop.",
+      "analysisDate": "2025-09-13T08:12:48.811Z",
+      "processingTime": 4412,
+      "validation": {
+        "isValid": false,
+        "reason": "Failed to validate image",
+        "detectedSubject": "Unknown",
+        "isCropRelated": false,
+        "confidence": 0
+      },
+      "error": true
+    },
+    {
+      "id": "12732b46-65ea-4f33-a0d2-4ff8489abcc2",
+      "cropId": "c6c3ea14-77c6-4f1b-a3ca-19e4844f771e",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749030065-645961306.jpg",
+      "imageName": "crop-1757749030065-645961306.jpg",
+      "confidence": 0,
+      "health": "Invalid Image",
+      "disease": "Image Validation Failed",
+      "diseaseConfidence": 0,
+      "recommendation": "Image rejected: Failed to validate image. Please upload a clear photo of your corn crop.",
+      "analysisDate": "2025-09-13T08:13:03.118Z",
+      "processingTime": 3725,
+      "validation": {
+        "isValid": false,
+        "reason": "Failed to validate image",
+        "detectedSubject": "Unknown",
+        "isCropRelated": false,
+        "confidence": 0
+      },
+      "error": true
+    },
+    {
+      "id": "d105720b-e7a9-4b25-878f-d631c25fb154",
+      "cropId": "a7a6bbf1-2b94-4b74-8a76-97395b1cb9cd",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749282321-152001120.jpg",
+      "imageName": "crop-1757749282321-152001120.jpg",
+      "confidence": 0,
+      "health": "Invalid Image",
+      "disease": "Image Validation Failed",
+      "diseaseConfidence": 0,
+      "recommendation": "Image rejected: Failed to validate image. Please upload a clear photo of your corn crop.",
+      "analysisDate": "2025-09-13T08:13:30.895Z",
+      "processingTime": 4794,
+      "validation": {
+        "isValid": false,
+        "reason": "Failed to validate image",
+        "detectedSubject": "Unknown",
+        "isCropRelated": false,
+        "confidence": 0
+      },
+      "error": true
     }
   ]
 }

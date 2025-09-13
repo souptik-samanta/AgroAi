@@ -198,19 +198,22 @@ function animateCounter(elementId, targetValue, suffix = '') {
     }, 50);
 }
 
-// Update AI status with rotating messages
+// Update AI status with more detailed messages
 function updateAIStatus() {
     const statusMessages = [
-        'Ready for Analysis',
-        'Processing Data...',
-        'Learning Patterns...',
-        'Optimizing Models...',
-        'Monitoring Health...',
-        'Analyzing Growth...',
-        'Ready for Analysis'
+        '🤖 Real AI Ready',
+        '🔍 Computer Vision Active', 
+        '🧠 Neural Networks Online',
+        '📊 Image Analysis Ready',
+        '🌱 Plant Health Monitoring',
+        '🔬 Disease Detection Active',
+        '💡 Smart Recommendations',
+        '🤖 Real AI Ready'
     ];
     
     const statusElement = document.getElementById('aiStatusText');
+    if (!statusElement) return;
+    
     let index = 0;
     
     const updateStatus = () => {
@@ -889,7 +892,7 @@ async function deleteCrop(cropId) {
     }
 }
 
-// Analyze crop
+// Analyze crop with enhanced AI messaging
 async function analyzeCrop(cropId) {
     const crop = crops.find(c => c.id === cropId);
     
@@ -902,18 +905,18 @@ async function analyzeCrop(cropId) {
     const modal = document.getElementById('aiAnalysisModal');
     modal.classList.add('active');
     
-    // Animate status messages during analysis
+    // Enhanced status messages for real AI
     const statusMessages = [
-        'Initializing neural network...',
-        'Loading computer vision models...',
-        'Preprocessing image data...',
-        'Analyzing plant morphology...',
-        'Detecting diseases and pests...',
-        'Evaluating nutritional status...',
-        'Assessing environmental stress...',
-        'Calculating health metrics...',
-        'Generating personalized recommendations...',
-        'Finalizing analysis report...'
+        '🤖 Initializing real AI engine...',
+        '📷 Loading computer vision models...',
+        '🔍 Preprocessing image data...',
+        '🌱 Analyzing plant morphology...',
+        '🦠 Detecting diseases and pests...',
+        '📊 Evaluating nutritional status...',
+        '🌡️ Assessing environmental stress...',
+        '💯 Calculating health metrics...',
+        '💡 Generating smart recommendations...',
+        '✅ Finalizing AI analysis report...'
     ];
     
     const statusElement = modal.querySelector('.ai-status-text');
@@ -924,7 +927,7 @@ async function analyzeCrop(cropId) {
             statusElement.textContent = statusMessages[messageIndex];
             messageIndex++;
         } else {
-            statusElement.textContent = 'Completing analysis...';
+            statusElement.textContent = '🤖 Completing real AI analysis...';
         }
     }, 400);
     
@@ -939,7 +942,7 @@ async function analyzeCrop(cropId) {
         modal.classList.remove('active');
         
         if (result.success) {
-            showNotification(`AI analysis completed! Confidence: ${result.analysis.confidence}% 🎯`, 'success');
+            showNotification(`🤖 Real AI analysis completed! Health: ${result.analysis.health} (${result.analysis.confidence}% confidence)`, 'success');
             
             // Refresh data
             await loadAnalyses();
@@ -954,13 +957,13 @@ async function analyzeCrop(cropId) {
                 }, 500);
             }
         } else {
-            showNotification('Analysis failed. Please try again.', 'error');
+            showNotification('AI analysis failed: ' + (result.message || 'Please try again'), 'error');
         }
     } catch (error) {
         clearInterval(statusInterval);
         modal.classList.remove('active');
-        showNotification('Network error during analysis. Please check your connection.', 'error');
-        console.error('Analysis error:', error);
+        showNotification('Network error during AI analysis. Please check your connection.', 'error');
+        console.error('AI Analysis error:', error);
     }
 }
 

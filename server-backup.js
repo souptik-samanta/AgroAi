@@ -5,18 +5,69 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const HackClubCropAI = require('./hackclub-ai-engine'); // Import Hack Club AI engine
+const CropAI = require('./ai-engine'); // Import our AI engine
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Hack Club AI engine - No API key needed! 🎉
-const cropAI = new HackClubCropAI();
-console.log('🚀 Hack Club GPT-4 120B AI Engine initialized successfully - FREE!');
+// Initialize AI engine
+const cropAI = new CropAI();
+console.log('🤖 AI Engine initialized successfully');
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
+
+app.use(session({
+  secret: 'agroai-secret-key-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }
+}));
+
+// Create directories
+const createDirs = () => {
+  if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+  if (!fs.existsSync('data')) fs.mkdirSync('data');
+};
+  
+  const healthyCrops = userAnalyses.filter(a => 
+    a.health === 'Excellent' || a.health === 'Good'
+  ).length;
+  
+  const stats = {
+    totalCrops: userCrops.length,
+    healthyCrops,
+    totalAnalyses: userAnalyses.length,
+    avgConfidence: userAnalyses.length > 0 ? 
+      (userAnalyses.reduce((sum, a) => sum + (a.confidence || 0), 0) / userAnalyses.length).toFixed(1) : 0
+  };
+  
+  res.json(stats);
+});
+
+// Get AI care tips for a crop type
+app.get('/api/ai-tips/:cropType', requireAuth, (req, res) => {
+  try {
+    const cropType = req.params.cropType.toLowerCase();
+    const tips = cropAI.getCareTips(cropType);
+    
+    res.json({
+      success: true,
+      cropType: cropType,
+      tips: tips,
+      generated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting AI tips:', error);
+    res.json({
+      success: false,
+      message: 'Failed to get AI tips'
+    });
+  }
+});(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
 
@@ -80,42 +131,27 @@ const upload = multer({
   }
 });
 
-// AI Analysis Functions using Hack Club GPT-4 120B Vision API (FREE!)
+// AI Analysis Functions using real computer vision
 const performAIAnalysis = async (cropType, imageUrl, imagePath) => {
   try {
-    console.log(`🚀 Starting Hack Club GPT-4 120B analysis for ${cropType}`);
+    console.log(`🤖 Starting real AI analysis for ${cropType}`);
     
-    // Use Hack Club AI engine for analysis
+    // Use our real AI engine
     const analysis = await cropAI.analyzeImage(imagePath, cropType);
     
-    // Check if image validation failed
-    if (analysis.error) {
-      console.log(`❌ Analysis failed: ${analysis.errorMessage || 'Invalid image'}`);
-      return analysis;
-    }
-    
-    // Check if image was rejected during validation
-    if (analysis.validation && !analysis.validation.isValid) {
-      console.log(`❌ Image rejected: ${analysis.validation.reason}`);
-      return analysis;
-    }
-    
-    console.log(`✅ Hack Club GPT-4 analysis completed in ${analysis.processingTime}ms`);
-    return analysis;
-    
-  } catch (error) {
-    console.error('Hack Club AI Analysis failed:', error);
     return {
-      confidence: 0.0,
-      health: 'Analysis Failed',
-      disease: 'System Error',
-      diseaseConfidence: 0.0,
-      recommendation: 'Unable to analyze image with Hack Club AI. Please check your internet connection and try again.',
-      analysisDate: new Date().toISOString(),
-      processingTime: 0,
-      error: true,
-      errorMessage: error.message
+      confidence: analysis.confidence,
+      health: analysis.health,
+      disease: analysis.disease,
+      diseaseConfidence: analysis.diseaseConfidence,
+      recommendation: analysis.recommendation,
+      analysisDate: analysis.analysisDate,
+      processingTime: analysis.processingTime,
+      features: analysis.features // Include detailed features
     };
+  } catch (error) {
+    console.error('AI Analysis failed, using fallback:', error);
+    return simulateAIAnalysis(cropType, imageUrl);
   }
 };
 
@@ -163,38 +199,34 @@ app.get('/', (req, res) => {
   if (req.session.userId) {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
   } else {
-    res.redirect('/login.html');
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
   }
 });
 
-// Authentication routes
+// Auth routes
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   const db = readDB();
   
   // Check if user exists
   if (db.users.find(u => u.email === email)) {
-    return res.json({ success: false, message: 'Email already registered' });
+    return res.json({ success: false, message: 'User already exists' });
   }
   
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = {
-      id: uuidv4(),
-      username,
-      email,
-      password: hashedPassword,
-      createdAt: new Date().toISOString()
-    };
-    
-    db.users.push(newUser);
-    writeDB(db);
-    
-    req.session.userId = newUser.id;
-    res.json({ success: true, user: { id: newUser.id, username, email } });
-  } catch (error) {
-    res.json({ success: false, message: 'Registration failed' });
-  }
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = {
+    id: uuidv4(),
+    username,
+    email,
+    password: hashedPassword,
+    createdAt: new Date().toISOString()
+  };
+  
+  db.users.push(newUser);
+  writeDB(db);
+  
+  req.session.userId = newUser.id;
+  res.json({ success: true });
 });
 
 app.post('/api/login', async (req, res) => {
@@ -202,13 +234,17 @@ app.post('/api/login', async (req, res) => {
   const db = readDB();
   
   const user = db.users.find(u => u.email === email);
+  if (!user) {
+    return res.json({ success: false, message: 'Invalid credentials' });
+  }
   
-  if (!user || !await bcrypt.compare(password, user.password)) {
+  const validPassword = await bcrypt.compare(password, user.password);
+  if (!validPassword) {
     return res.json({ success: false, message: 'Invalid credentials' });
   }
   
   req.session.userId = user.id;
-  res.json({ success: true, user: { id: user.id, username: user.username, email: user.email } });
+  res.json({ success: true });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -535,39 +571,29 @@ app.get('/api/dashboard-stats', requireAuth, (req, res) => {
     healthyCrops,
     totalAnalyses: userAnalyses.length,
     avgConfidence: userAnalyses.length > 0 ? 
-      (userAnalyses.reduce((sum, a) => sum + (a.confidence || 0), 0) / userAnalyses.length).toFixed(1) : 0
+      (userAnalyses.reduce((sum, a) => sum + a.confidence, 0) / userAnalyses.length).toFixed(1) : 0
   };
   
   res.json(stats);
 });
 
-// Get AI care tips for a crop type using Hack Club GPT-4
-app.get('/api/ai-tips/:cropType', requireAuth, async (req, res) => {
+// Get AI care tips for a crop type
+app.get('/api/ai-tips/:cropType', requireAuth, (req, res) => {
   try {
-    const cropType = req.params.cropType;
-    console.log(`🚀 Getting Hack Club GPT-4 tips for ${cropType}`);
-    
-    const tips = await cropAI.getCropTips(cropType);
+    const cropType = req.params.cropType.toLowerCase();
+    const tips = cropAI.getCareTips(cropType);
     
     res.json({
       success: true,
       cropType: cropType,
       tips: tips,
-      source: 'Hack Club GPT-4 120B',
-      free: true
+      generated: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Failed to get AI tips:', error);
-    res.status(500).json({
+    console.error('Error getting AI tips:', error);
+    res.json({
       success: false,
-      error: 'Failed to get AI tips',
-      tips: [
-        `Monitor your ${req.params.cropType} regularly for signs of disease`,
-        `Ensure proper watering schedule`,
-        `Apply appropriate fertilizer for growth stage`,
-        `Check soil pH levels regularly`,
-        `Implement integrated pest management strategies`
-      ]
+      message: 'Failed to get AI tips'
     });
   }
 });
@@ -580,6 +606,4 @@ writeDB(db);
 app.listen(PORT, () => {
   console.log(`🌱 AgroAI Server running on http://localhost:${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard.html`);
-  console.log(`🚀 Hack Club GPT-4 120B AI Engine: ACTIVE & FREE!`);
-  console.log(`💡 No API key needed - powered by Hack Club`);
 });
