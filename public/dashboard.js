@@ -100,9 +100,9 @@ async function loadDashboardStats() {
             // If stats endpoint doesn't exist, calculate from current data
             const stats = {
                 totalCrops: crops.length,
-                healthyCrops: analyses.filter(a => a.health === 'Healthy').length,
+                healthyCrops: analyses.filter(a => a.health === 'Excellent' || a.health === 'Good').length,
                 totalAnalyses: analyses.length,
-                avgConfidence: analyses.length > 0 ? Math.round(analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length) : 0
+                avgConfidence: analyses.length > 0 ? Math.round(analyses.reduce((sum, a) => sum + (a.confidence || 0), 0) / analyses.length) : 0
             };
             
             // Animate counter updates
@@ -119,11 +119,31 @@ async function loadDashboardStats() {
         const stats = await response.json();
         console.log('Stats loaded:', stats);
         
-        // Animate counter updates
-        animateCounter('totalCrops', stats.totalCrops);
-        animateCounter('healthyCrops', stats.healthyCrops);
-        animateCounter('totalAnalyses', stats.totalAnalyses);
-        animateCounter('avgConfidence', stats.avgConfidence, '%');
+        // Animate counter updates only if values changed
+        const totalCropsElement = document.getElementById('totalCrops');
+        const healthyCropsElement = document.getElementById('healthyCrops');
+        const totalAnalysesElement = document.getElementById('totalAnalyses');
+        const avgConfidenceElement = document.getElementById('avgConfidence');
+        
+        if (!totalCropsElement.dataset.lastValue || totalCropsElement.dataset.lastValue != stats.totalCrops) {
+            animateCounter('totalCrops', stats.totalCrops);
+            totalCropsElement.dataset.lastValue = stats.totalCrops;
+        }
+        
+        if (!healthyCropsElement.dataset.lastValue || healthyCropsElement.dataset.lastValue != stats.healthyCrops) {
+            animateCounter('healthyCrops', stats.healthyCrops);
+            healthyCropsElement.dataset.lastValue = stats.healthyCrops;
+        }
+        
+        if (!totalAnalysesElement.dataset.lastValue || totalAnalysesElement.dataset.lastValue != stats.totalAnalyses) {
+            animateCounter('totalAnalyses', stats.totalAnalyses);
+            totalAnalysesElement.dataset.lastValue = stats.totalAnalyses;
+        }
+        
+        if (!avgConfidenceElement.dataset.lastValue || avgConfidenceElement.dataset.lastValue != stats.avgConfidence) {
+            animateCounter('avgConfidence', stats.avgConfidence, '%');
+            avgConfidenceElement.dataset.lastValue = stats.avgConfidence;
+        }
         
         // Update AI status
         updateAIStatus();
@@ -132,9 +152,9 @@ async function loadDashboardStats() {
         // Use fallback calculations
         const stats = {
             totalCrops: crops.length,
-            healthyCrops: analyses.filter(a => a.health === 'Healthy').length,
+            healthyCrops: analyses.filter(a => a.health === 'Excellent' || a.health === 'Good').length,
             totalAnalyses: analyses.length,
-            avgConfidence: analyses.length > 0 ? Math.round(analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length) : 0
+            avgConfidence: analyses.length > 0 ? Math.round(analyses.reduce((sum, a) => sum + (a.confidence || 0), 0) / analyses.length) : 0
         };
         
         animateCounter('totalCrops', stats.totalCrops);
@@ -145,19 +165,34 @@ async function loadDashboardStats() {
     }
 }
 
-// Animate counters
+// Animate counters with anti-flicker
 function animateCounter(elementId, targetValue, suffix = '') {
     const element = document.getElementById(elementId);
-    const currentValue = parseInt(element.textContent) || 0;
-    const increment = Math.ceil((targetValue - currentValue) / 20);
+    if (!element) return;
     
-    if (currentValue === targetValue) return;
+    const currentValue = parseInt(element.textContent.replace(/[^0-9]/g, '')) || 0;
+    const finalTarget = parseInt(targetValue) || 0;
+    
+    // Prevent unnecessary animations if values are the same
+    if (currentValue === finalTarget) {
+        element.textContent = finalTarget + suffix;
+        return;
+    }
+    
+    const increment = Math.ceil(Math.abs(finalTarget - currentValue) / 15);
+    const isIncreasing = finalTarget > currentValue;
+    let current = currentValue;
     
     const timer = setInterval(() => {
-        const newValue = Math.min(currentValue + increment, targetValue);
-        element.textContent = newValue + suffix;
+        if (isIncreasing) {
+            current = Math.min(current + increment, finalTarget);
+        } else {
+            current = Math.max(current - increment, finalTarget);
+        }
         
-        if (newValue >= targetValue) {
+        element.textContent = current + suffix;
+        
+        if (current === finalTarget) {
             clearInterval(timer);
         }
     }, 50);
@@ -237,21 +272,35 @@ function renderCrops() {
     container.innerHTML = crops.map(crop => createCropCard(crop)).join('');
 }
 
-// Create crop card HTML
+// Create crop card HTML with better file display
 function createCropCard(crop) {
     const plantedDaysAgo = Math.floor((new Date() - new Date(crop.plantedDate)) / (1000 * 60 * 60 * 24));
     const recentAnalysis = analyses.find(a => a.cropId === crop.id);
     const healthStatus = recentAnalysis ? recentAnalysis.health : 'Unknown';
     const healthClass = healthStatus.toLowerCase().replace(' ', '-');
     
+    // Format file size
+    const formatFileSize = (bytes) => {
+        if (!bytes) return '';
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    };
+    
     return `
         <div class="crop-card" onclick="showCropDetail('${crop.id}')">
             <div class="crop-image">
                 ${crop.imageUrl ? 
-                    `<img src="${crop.imageUrl}" alt="${crop.name}" loading="lazy">` :
+                    `<img src="${crop.imageUrl}" alt="${crop.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'crop-image-placeholder\\'><i class=\\'fas fa-image\\'></i><span>Image not found</span></div>'">
+                     <div class="image-info" style="position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+                        ${crop.imageSize ? formatFileSize(crop.imageSize) : 'Image'}
+                     </div>` :
                     `<div class="crop-image-placeholder">
                          <i class="fas fa-seedling"></i>
                          <span>No image</span>
+                         <button onclick="event.stopPropagation(); uploadImageForCrop('${crop.id}')" class="btn btn-sm btn-primary" style="margin-top: 8px;">
+                            <i class="fas fa-camera"></i> Add Photo
+                         </button>
                      </div>`
                 }
                 ${recentAnalysis ? `
@@ -283,14 +332,26 @@ function createCropCard(crop) {
                         <span class="crop-detail-label">Age</span>
                         <span class="crop-detail-value">${plantedDaysAgo} days</span>
                     </div>
+                    ${crop.imageUrl ? `
+                        <div class="crop-detail">
+                            <span class="crop-detail-label">Photo</span>
+                            <span class="crop-detail-value">
+                                <i class="fas fa-image" style="color: green;"></i> Available
+                            </span>
+                        </div>
+                    ` : ''}
                 </div>
                 <div class="crop-actions" onclick="event.stopPropagation();">
                     ${crop.imageUrl ? `
                         <button onclick="analyzeCrop('${crop.id}')" class="btn btn-primary btn-sm">
                             <i class="fas fa-microscope"></i> Analyze
                         </button>
-                    ` : ''}
-                    <button onclick="deleteCrop('${crop.id}')" class="btn btn-secondary btn-sm">
+                    ` : `
+                        <button onclick="uploadImageForCrop('${crop.id}')" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-camera"></i> Add Photo
+                        </button>
+                    `}
+                    <button onclick="deleteCrop('${crop.id}')" class="btn btn-secondary btn-sm" style="background: #dc3545;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -667,10 +728,24 @@ document.getElementById('addCropForm').addEventListener('submit', async (e) => {
     const type = formData.get('type');
     const location = formData.get('location').trim();
     const plantedDate = formData.get('plantedDate');
+    const imageFile = formData.get('image');
     
     if (!name || !type || !location || !plantedDate) {
         showNotification('Please fill in all required fields', 'error');
         return;
+    }
+    
+    // Validate image file if provided
+    if (imageFile && imageFile.size > 0) {
+        if (imageFile.size > 10 * 1024 * 1024) {
+            showNotification('Image file must be less than 10MB', 'error');
+            return;
+        }
+        
+        if (!imageFile.type.startsWith('image/')) {
+            showNotification('Please select a valid image file', 'error');
+            return;
+        }
     }
     
     // Show loading state
@@ -688,18 +763,21 @@ document.getElementById('addCropForm').addEventListener('submit', async (e) => {
         const result = await response.json();
         
         if (result.success) {
-            showNotification('Crop added successfully! 🌱', 'success');
+            const message = imageFile && imageFile.size > 0 ? 
+                'Crop added with AI analysis! 🌱🤖' : 
+                'Crop added successfully! 🌱';
+            
+            showNotification(message, 'success');
             closeAddCropModal();
             
             // Refresh data
             await loadCrops();
             await loadDashboardStats();
             
-            // Show AI analysis notification if image was uploaded
-            const imageFile = formData.get('image');
+            // Show additional notification for AI analysis
             if (imageFile && imageFile.size > 0) {
                 setTimeout(() => {
-                    showNotification('AI analysis completed automatically! 🤖', 'info');
+                    showNotification('AI analysis completed! Check the Analyses section for details.', 'info');
                     if (currentSection === 'analyses') {
                         loadAnalyses();
                     }
@@ -723,16 +801,66 @@ document.getElementById('addCropForm').addEventListener('submit', async (e) => {
     }
 });
 
-// Delete crop
+// Upload image for existing crop
+function uploadImageForCrop(cropId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 10 * 1024 * 1024) {
+            showNotification('File size must be less than 10MB', 'error');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        try {
+            showNotification('Uploading image...', 'info');
+            
+            const response = await fetch(`/api/crops/${cropId}/upload-image`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification('Image uploaded successfully! 📸', 'success');
+                await loadCrops();
+                if (currentSection === 'gallery') {
+                    loadGallery();
+                }
+            } else {
+                showNotification(result.message || 'Failed to upload image', 'error');
+            }
+        } catch (error) {
+            showNotification('Upload failed. Please try again.', 'error');
+            console.error('Upload error:', error);
+        }
+    };
+    input.click();
+}
+
+// Delete crop with confirmation
 async function deleteCrop(cropId) {
     const crop = crops.find(c => c.id === cropId);
     if (!crop) return;
     
-    if (!confirm(`Are you sure you want to delete "${crop.name}"? This will also delete all associated analyses and cannot be undone.`)) {
+    const confirmMessage = crop.imageUrl ? 
+        `Are you sure you want to delete "${crop.name}"?\n\nThis will also delete:\n• The crop photo\n• All AI analyses\n• All associated data\n\nThis action cannot be undone.` :
+        `Are you sure you want to delete "${crop.name}"?\n\nThis will also delete all associated analyses and cannot be undone.`;
+    
+    if (!confirm(confirmMessage)) {
         return;
     }
     
     try {
+        showNotification('Deleting crop...', 'info');
+        
         const response = await fetch(`/api/crops/${cropId}`, {
             method: 'DELETE'
         });
@@ -740,7 +868,9 @@ async function deleteCrop(cropId) {
         const result = await response.json();
         
         if (result.success) {
-            showNotification(`"${crop.name}" deleted successfully`, 'success');
+            showNotification(result.message || 'Crop deleted successfully', 'success');
+            
+            // Refresh all sections
             await loadCrops();
             await loadDashboardStats();
             
@@ -751,10 +881,11 @@ async function deleteCrop(cropId) {
                 loadAnalyses();
             }
         } else {
-            showNotification('Failed to delete crop', 'error');
+            showNotification(result.message || 'Failed to delete crop', 'error');
         }
     } catch (error) {
-        showNotification('Network error. Please try again.', 'error');
+        showNotification('Delete failed. Please try again.', 'error');
+        console.error('Delete error:', error);
     }
 }
 
@@ -939,22 +1070,85 @@ async function addSampleData() {
     showNotification('Sample crops added to get you started! 🚀', 'info');
 }
 
-// Auto-refresh dashboard stats every 30 seconds
+// Auto-refresh dashboard stats every 60 seconds (reduced frequency to prevent flickering)
 setInterval(() => {
     if (currentSection === 'dashboard') {
-        loadDashboardStats();
+        // Only refresh if user is actively on dashboard and no modals are open
+        const hasActiveModal = document.querySelector('.modal.active');
+        if (!hasActiveModal) {
+            loadDashboardStats();
+        }
     }
-}, 30000);
+}, 60000); // Changed from 30 to 60 seconds
 
-// Image preview for file upload
+// Image preview for file upload with better feedback
 document.getElementById('cropImage').addEventListener('change', function(e) {
     const file = e.target.files[0];
+    const preview = document.getElementById('imagePreview');
+    
+    // Remove existing preview
+    if (preview) {
+        preview.remove();
+    }
+    
     if (file) {
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+            showNotification('Please select a valid image file', 'error');
+            this.value = '';
+            return;
+        }
+        
+        if (file.size > 10 * 1024 * 1024) {
+            showNotification('Image file must be less than 10MB', 'error');
+            this.value = '';
+            return;
+        }
+        
         const reader = new FileReader();
         reader.onload = function(e) {
-            // Could add image preview here if needed
-            showNotification('Image selected. AI analysis will run automatically after adding the crop.', 'info');
+            // Create preview element
+            const previewDiv = document.createElement('div');
+            previewDiv.id = 'imagePreview';
+            previewDiv.style.cssText = `
+                margin-top: 12px;
+                text-align: center;
+                background: var(--bg-secondary);
+                padding: 16px;
+                border-radius: 8px;
+                border: 2px dashed var(--border);
+            `;
+            
+            previewDiv.innerHTML = `
+                <img src="${e.target.result}" alt="Preview" style="
+                    max-width: 100%;
+                    max-height: 200px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                ">
+                <div style="margin-top: 8px; color: var(--text-secondary); font-size: 14px;">
+                    <i class="fas fa-file-image"></i> ${file.name}
+                    <span style="margin-left: 12px;">
+                        <i class="fas fa-weight"></i> ${formatFileSize(file.size)}
+                    </span>
+                </div>
+                <div style="margin-top: 8px; color: var(--success-color); font-size: 12px;">
+                    <i class="fas fa-check"></i> Ready for upload • AI analysis will run automatically
+                </div>
+            `;
+            
+            // Insert after the file input
+            document.getElementById('cropImage').parentNode.insertBefore(previewDiv, document.getElementById('cropImage').nextSibling);
+            
+            showNotification('Image selected and ready for upload! 📸', 'success');
         };
         reader.readAsDataURL(file);
+    }
+    
+    function formatFileSize(bytes) {
+        if (!bytes) return '0 B';
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
     }
 });

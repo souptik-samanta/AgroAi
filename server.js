@@ -42,17 +42,38 @@ const writeDB = (data) => {
   fs.writeFileSync('data/database.json', JSON.stringify(data, null, 2));
 };
 
-// File upload configuration
+// File upload configuration with better validation
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    const uploadPath = 'uploads/';
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const fileName = `crop-${uniqueSuffix}${path.extname(file.originalname)}`;
+    cb(null, fileName);
   }
 });
 
-const upload = multer({ storage: storage });
+// File filter for images only
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 // AI Simulation Functions
 const simulateAIAnalysis = (cropType, imageUrl) => {
@@ -153,62 +174,224 @@ app.post('/api/logout', (req, res) => {
 
 // Crop routes
 app.get('/api/crops', requireAuth, (req, res) => {
-  const db = readDB();
-  const userCrops = db.crops.filter(crop => crop.userId === req.session.userId);
-  res.json(userCrops);
+  try {
+    const db = readDB();
+    const userCrops = db.crops.filter(crop => crop.userId === req.session.userId);
+    
+    // Sort by creation date (newest first)
+    userCrops.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    console.log(`📊 Returning ${userCrops.length} crops for user`);
+    res.json(userCrops);
+  } catch (error) {
+    console.error('Error fetching crops:', error);
+    res.status(500).json([]);
+  }
+});
+
+// Get uploaded files/images
+app.get('/api/files', requireAuth, (req, res) => {
+  try {
+    const db = readDB();
+    const userCrops = db.crops.filter(crop => crop.userId === req.session.userId);
+    
+    const files = userCrops
+      .filter(crop => crop.imageUrl)
+      .map(crop => ({
+        id: crop.id,
+        cropName: crop.name,
+        cropType: crop.type,
+        imageUrl: crop.imageUrl,
+        imageName: crop.imageName,
+        imageSize: crop.imageSize,
+        createdAt: crop.createdAt
+      }));
+    
+    res.json(files);
+  } catch (error) {
+    console.error('Error fetching files:', error);
+    res.status(500).json([]);
+  }
 });
 
 app.post('/api/crops', requireAuth, upload.single('image'), (req, res) => {
-  const { name, type, location, plantedDate } = req.body;
-  const db = readDB();
-  
-  const newCrop = {
-    id: uuidv4(),
-    userId: req.session.userId,
-    name,
-    type,
-    location,
-    plantedDate,
-    imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
-    createdAt: new Date().toISOString()
-  };
-  
-  db.crops.push(newCrop);
-  
-  // Generate fake AI analysis
-  if (req.file) {
+  try {
+    const { name, type, location, plantedDate } = req.body;
+    
+    // Validation
+    if (!name || !type || !location || !plantedDate) {
+      return res.json({ 
+        success: false, 
+        message: 'All fields (name, type, location, planted date) are required' 
+      });
+    }
+    
+    const db = readDB();
+    
+    const newCrop = {
+      id: uuidv4(),
+      userId: req.session.userId,
+      name: name.trim(),
+      type: type.toLowerCase(),
+      location: location.trim(),
+      plantedDate,
+      imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
+      imageName: req.file ? req.file.filename : null,
+      imageSize: req.file ? req.file.size : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    db.crops.push(newCrop);
+    
+    // Generate AI analysis if image is provided
+    if (req.file) {
+      const analysis = {
+        id: uuidv4(),
+        cropId: newCrop.id,
+        userId: req.session.userId,
+        imageUrl: newCrop.imageUrl,
+        imageName: newCrop.imageName,
+        ...simulateAIAnalysis(type, newCrop.imageUrl)
+      };
+      db.analyses.push(analysis);
+      
+      console.log(`✅ Crop "${name}" added with AI analysis (${req.file.filename})`);
+    } else {
+      console.log(`✅ Crop "${name}" added without image`);
+    }
+    
+    writeDB(db);
+    res.json({ 
+      success: true, 
+      crop: newCrop,
+      message: req.file ? 'Crop added with AI analysis!' : 'Crop added successfully!'
+    });
+    
+  } catch (error) {
+    console.error('Error adding crop:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// Upload image to existing crop
+app.post('/api/crops/:id/upload-image', requireAuth, upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.json({ success: false, message: 'No image file provided' });
+    }
+    
+    const db = readDB();
+    const cropIndex = db.crops.findIndex(crop => 
+      crop.id === req.params.id && crop.userId === req.session.userId
+    );
+    
+    if (cropIndex === -1) {
+      // Delete uploaded file since crop not found
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.json({ success: false, message: 'Crop not found' });
+    }
+    
+    const crop = db.crops[cropIndex];
+    
+    // Delete old image if it exists
+    if (crop.imageUrl && crop.imageName) {
+      const oldImagePath = path.join('uploads', crop.imageName);
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
+        console.log(`🗑️ Deleted old image: ${crop.imageName}`);
+      }
+    }
+    
+    // Update crop with new image
+    crop.imageUrl = `/uploads/${req.file.filename}`;
+    crop.imageName = req.file.filename;
+    crop.imageSize = req.file.size;
+    crop.updatedAt = new Date().toISOString();
+    
+    // Generate AI analysis for the new image
     const analysis = {
       id: uuidv4(),
-      cropId: newCrop.id,
+      cropId: crop.id,
       userId: req.session.userId,
-      imageUrl: newCrop.imageUrl,
-      ...simulateAIAnalysis(type, newCrop.imageUrl)
+      imageUrl: crop.imageUrl,
+      imageName: crop.imageName,
+      ...simulateAIAnalysis(crop.type, crop.imageUrl)
     };
+    
     db.analyses.push(analysis);
+    writeDB(db);
+    
+    console.log(`📸 Image uploaded for crop "${crop.name}" (${req.file.filename})`);
+    res.json({ 
+      success: true, 
+      message: 'Image uploaded and analyzed successfully!',
+      crop: crop,
+      analysis: analysis
+    });
+    
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    // Clean up uploaded file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
   }
-  
-  writeDB(db);
-  res.json({ success: true, crop: newCrop });
 });
 
 app.delete('/api/crops/:id', requireAuth, (req, res) => {
-  const db = readDB();
-  const cropIndex = db.crops.findIndex(crop => 
-    crop.id === req.params.id && crop.userId === req.session.userId
-  );
-  
-  if (cropIndex === -1) {
-    return res.json({ success: false, message: 'Crop not found' });
+  try {
+    const db = readDB();
+    const cropIndex = db.crops.findIndex(crop => 
+      crop.id === req.params.id && crop.userId === req.session.userId
+    );
+    
+    if (cropIndex === -1) {
+      return res.json({ success: false, message: 'Crop not found' });
+    }
+    
+    const crop = db.crops[cropIndex];
+    
+    // Delete associated image file if it exists
+    if (crop.imageUrl && crop.imageName) {
+      const imagePath = path.join('uploads', crop.imageName);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`🗑️ Deleted image file: ${crop.imageName}`);
+      }
+    }
+    
+    // Delete associated analyses
+    const analysesCountBefore = db.analyses.length;
+    db.analyses = db.analyses.filter(analysis => analysis.cropId !== req.params.id);
+    const deletedAnalyses = analysesCountBefore - db.analyses.length;
+    
+    // Delete crop
+    db.crops.splice(cropIndex, 1);
+    writeDB(db);
+    
+    console.log(`🗑️ Deleted crop "${crop.name}" and ${deletedAnalyses} analyses`);
+    res.json({ 
+      success: true, 
+      message: `Crop "${crop.name}" deleted successfully`
+    });
+    
+  } catch (error) {
+    console.error('Error deleting crop:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
   }
-  
-  // Delete associated analyses
-  db.analyses = db.analyses.filter(analysis => analysis.cropId !== req.params.id);
-  
-  // Delete crop
-  db.crops.splice(cropIndex, 1);
-  writeDB(db);
-  
-  res.json({ success: true });
 });
 
 // Analysis routes

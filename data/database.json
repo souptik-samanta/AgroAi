@@ -6,6 +6,13 @@
       "email": "demo@agroai.com",
       "password": "$2a$10$hCFY/o.dXj/mCA7HNe6KxeWOIefdQ36KUrDUP6YsF4AQneQLjcxMm",
       "createdAt": "2025-09-13T07:10:39.110Z"
+    },
+    {
+      "id": "31cfc04b-b19d-429f-b404-51ccf9b6e9b9",
+      "username": "asda",
+      "email": "souptiksamanta20141188@gmail.com",
+      "password": "$2a$10$0JttQaVVJP2exAGpRRMPYuM4rhhXtBI2iaswB7oSgF74NOMCGkxpW",
+      "createdAt": "2025-09-13T07:43:18.663Z"
     }
   ],
   "crops": [
@@ -16,8 +23,11 @@
       "type": "wheat",
       "location": "Field A-1",
       "plantedDate": "2024-03-15",
-      "imageUrl": null,
-      "createdAt": "2025-09-13T07:29:00.482Z"
+      "imageUrl": "/uploads/crop-1757749037704-143495449.jpg",
+      "createdAt": "2025-09-13T07:29:00.482Z",
+      "imageName": "crop-1757749037704-143495449.jpg",
+      "imageSize": 407024,
+      "updatedAt": "2025-09-13T07:37:17.816Z"
     },
     {
       "id": "3d723f75-4e48-44c7-a5a6-caf97da0e7fa",
@@ -26,8 +36,11 @@
       "type": "tomato",
       "location": "Greenhouse B",
       "plantedDate": "2024-04-01",
-      "imageUrl": null,
-      "createdAt": "2025-09-13T07:29:00.542Z"
+      "imageUrl": "/uploads/crop-1757749033703-405229050.jpg",
+      "createdAt": "2025-09-13T07:29:00.542Z",
+      "imageName": "crop-1757749033703-405229050.jpg",
+      "imageSize": 519757,
+      "updatedAt": "2025-09-13T07:37:13.985Z"
     },
     {
       "id": "c6c3ea14-77c6-4f1b-a3ca-19e4844f771e",
@@ -36,9 +49,143 @@
       "type": "corn",
       "location": "Field C-2",
       "plantedDate": "2024-03-20",
+      "imageUrl": "/uploads/crop-1757749030065-645961306.jpg",
+      "createdAt": "2025-09-13T07:29:00.561Z",
+      "imageName": "crop-1757749030065-645961306.jpg",
+      "imageSize": 407024,
+      "updatedAt": "2025-09-13T07:37:10.165Z"
+    },
+    {
+      "id": "91574ece-bb53-49e7-a0bf-bb73e85b8ed3",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "asex",
+      "type": "corn",
+      "location": "se",
+      "plantedDate": "2025-09-13",
+      "imageUrl": "/uploads/crop-1757749045542-954856946.jpg",
+      "imageName": "crop-1757749045542-954856946.jpg",
+      "imageSize": 519757,
+      "createdAt": "2025-09-13T07:37:25.692Z",
+      "updatedAt": "2025-09-13T07:37:25.692Z"
+    },
+    {
+      "id": "a7a6bbf1-2b94-4b74-8a76-97395b1cb9cd",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "asex",
+      "type": "corn",
+      "location": "asd",
+      "plantedDate": "2025-09-13",
+      "imageUrl": "/uploads/crop-1757749282321-152001120.jpg",
+      "imageName": "crop-1757749282321-152001120.jpg",
+      "imageSize": 952388,
+      "createdAt": "2025-09-13T07:41:22.520Z",
+      "updatedAt": "2025-09-13T07:41:22.520Z"
+    },
+    {
+      "id": "2b561644-b4d1-4de4-a7c2-a3197ae50544",
+      "userId": "31cfc04b-b19d-429f-b404-51ccf9b6e9b9",
+      "name": "North Field Wheat",
+      "type": "wheat",
+      "location": "Field A-1",
+      "plantedDate": "2024-03-15",
       "imageUrl": null,
-      "createdAt": "2025-09-13T07:29:00.561Z"
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T07:43:21.934Z",
+      "updatedAt": "2025-09-13T07:43:21.934Z"
+    },
+    {
+      "id": "70302047-87ea-407e-bb90-8421b75e554c",
+      "userId": "31cfc04b-b19d-429f-b404-51ccf9b6e9b9",
+      "name": "Greenhouse Tomatoes",
+      "type": "tomato",
+      "location": "Greenhouse B",
+      "plantedDate": "2024-04-01",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T07:43:21.950Z",
+      "updatedAt": "2025-09-13T07:43:21.950Z"
+    },
+    {
+      "id": "28f8034c-001c-4bc0-9f06-2f3f461f1cab",
+      "userId": "31cfc04b-b19d-429f-b404-51ccf9b6e9b9",
+      "name": "East Plot Corn",
+      "type": "corn",
+      "location": "Field C-2",
+      "plantedDate": "2024-03-20",
+      "imageUrl": null,
+      "imageName": null,
+      "imageSize": null,
+      "createdAt": "2025-09-13T07:43:21.964Z",
+      "updatedAt": "2025-09-13T07:43:21.964Z"
     }
   ],
-  "analyses": []
+  "analyses": [
+    {
+      "id": "6fcf9cc6-0747-48dd-b653-7b578d272870",
+      "cropId": "c6c3ea14-77c6-4f1b-a3ca-19e4844f771e",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749030065-645961306.jpg",
+      "imageName": "crop-1757749030065-645961306.jpg",
+      "confidence": 88,
+      "health": "Good",
+      "disease": "Healthy",
+      "recommendation": "Implement pest control measures",
+      "analysisDate": "2025-09-13T07:37:10.166Z",
+      "processingTime": "2.15s"
+    },
+    {
+      "id": "199e8b6c-2e7f-442f-b8d6-b36da2a21a1a",
+      "cropId": "3d723f75-4e48-44c7-a5a6-caf97da0e7fa",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749033703-405229050.jpg",
+      "imageName": "crop-1757749033703-405229050.jpg",
+      "confidence": 94,
+      "health": "Poor",
+      "disease": "Healthy",
+      "recommendation": "Monitor for further symptoms",
+      "analysisDate": "2025-09-13T07:37:13.985Z",
+      "processingTime": "2.12s"
+    },
+    {
+      "id": "e09b2989-0aae-47c8-82e7-969f461f691c",
+      "cropId": "2bc16dd7-1dc2-4f28-979f-4bd04d46ae17",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749037704-143495449.jpg",
+      "imageName": "crop-1757749037704-143495449.jpg",
+      "confidence": 95,
+      "health": "Fair",
+      "disease": "Nutrient Deficiency",
+      "recommendation": "Monitor for further symptoms",
+      "analysisDate": "2025-09-13T07:37:17.816Z",
+      "processingTime": "2.70s"
+    },
+    {
+      "id": "6a227ed3-7237-4b61-a94c-4cd3ea48e3f4",
+      "cropId": "91574ece-bb53-49e7-a0bf-bb73e85b8ed3",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749045542-954856946.jpg",
+      "imageName": "crop-1757749045542-954856946.jpg",
+      "confidence": 89,
+      "health": "Fair",
+      "disease": "Healthy",
+      "recommendation": "Harvest within 2 weeks",
+      "analysisDate": "2025-09-13T07:37:25.692Z",
+      "processingTime": "1.28s"
+    },
+    {
+      "id": "523e4bab-3011-4927-acef-b4df88d51fc2",
+      "cropId": "a7a6bbf1-2b94-4b74-8a76-97395b1cb9cd",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "imageUrl": "/uploads/crop-1757749282321-152001120.jpg",
+      "imageName": "crop-1757749282321-152001120.jpg",
+      "confidence": 97,
+      "health": "Critical",
+      "disease": "Leaf Blight",
+      "recommendation": "Apply fungicide treatment",
+      "analysisDate": "2025-09-13T07:41:22.520Z",
+      "processingTime": "2.40s"
+    }
+  ]
 }
