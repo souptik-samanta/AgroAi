@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Files - AgroAI</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1><i class="fas fa-images"></i> File Manager</h1>
+                    <p>View and manage your uploaded crop images</p>
+                </div>
+                <div class="header-right">
+                    <a href="dashboard.html" class="btn btn-primary">
+                        <i class="fas fa-tachometer-alt"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="files-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-folder-open"></i> Uploaded Files</h2>
+                    <div class="view-controls">
+                        <button onclick="setView('grid')" class="btn btn-secondary btn-sm view-btn active" id="gridBtn">
+                            <i class="fas fa-th"></i> Grid
+                        </button>
+                        <button onclick="setView('list')" class="btn btn-secondary btn-sm view-btn" id="listBtn">
+                            <i class="fas fa-list"></i> List
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="files-stats" style="margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div class="stat-card" style="flex: 1; min-width: 200px;">
+                        <div class="stat-icon"><i class="fas fa-images"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="totalFiles">0</div>
+                            <div class="stat-label">Total Files</div>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="flex: 1; min-width: 200px;">
+                        <div class="stat-icon"><i class="fas fa-hdd"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="totalSize">0 MB</div>
+                            <div class="stat-label">Total Size</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="filesContainer" class="files-container grid-view">
+                    <div class="loading-state" style="text-align: center; padding: 60px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #ccc;"></i>
+                        <p style="margin-top: 20px; color: #666;">Loading files...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let files = [];
+        let currentView = 'grid';
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Set view mode
+        function setView(view) {
+            currentView = view;
+            document.getElementById('gridBtn').classList.toggle('active', view === 'grid');
+            document.getElementById('listBtn').classList.toggle('active', view === 'list');
+            
+            const container = document.getElementById('filesContainer');
+            container.className = `files-container ${view}-view`;
+            
+            renderFiles();
+        }
+
+        // Load files
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/files');
+                if (!response.ok) throw new Error('Failed to fetch files');
+                
+                files = await response.json();
+                renderFiles();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading files:', error);
+                document.getElementById('filesContainer').innerHTML = `
+                    <div class="empty-state" style="text-align: center; padding: 60px;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #dc3545; margin-bottom: 20px;"></i>
+                        <h3>Failed to load files</h3>
+                        <p>Please check your connection and try again</p>
+                        <button onclick="loadFiles()" class="btn btn-primary" style="margin-top: 20px;">
+                            <i class="fas fa-refresh"></i> Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Update statistics
+        function updateStats() {
+            const totalFiles = files.length;
+            const totalSize = files.reduce((sum, file) => sum + (file.imageSize || 0), 0);
+            
+            document.getElementById('totalFiles').textContent = totalFiles;
+            document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+        }
+
+        // Render files
+        function renderFiles() {
+            const container = document.getElementById('filesContainer');
+            
+            if (files.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="text-align: center; padding: 60px; grid-column: 1/-1;">
+                        <i class="fas fa-images" style="font-size: 4rem; color: #ccc; margin-bottom: 20px;"></i>
+                        <h3>No files uploaded yet</h3>
+                        <p>Upload crop images from the dashboard to see them here</p>
+                        <a href="dashboard.html" class="btn btn-primary" style="margin-top: 20px;">
+                            <i class="fas fa-plus"></i> Add Crops
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+
+            if (currentView === 'grid') {
+                container.innerHTML = files.map(file => `
+                    <div class="file-card">
+                        <div class="file-image">
+                            <img src="${file.imageUrl}" alt="${file.cropName}" loading="lazy" 
+                                 onerror="this.parentElement.innerHTML='<div class=\\'file-error\\'><i class=\\'fas fa-image\\'></i><span>Image not found</span></div>'">
+                        </div>
+                        <div class="file-info">
+                            <h4 class="file-name">${file.cropName}</h4>
+                            <div class="file-details">
+                                <span class="file-type">${file.cropType}</span>
+                                <span class="file-size">${formatFileSize(file.imageSize)}</span>
+                            </div>
+                            <div class="file-date">${formatDate(file.createdAt)}</div>
+                        </div>
+                        <div class="file-actions">
+                            <a href="${file.imageUrl}" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            <a href="${file.imageUrl}" download="${file.imageName}" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = `
+                    <div class="files-table">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border);">
+                                    <th style="padding: 16px; text-align: left; font-weight: 600;">Preview</th>
+                                    <th style="padding: 16px; text-align: left; font-weight: 600;">Crop Name</th>
+                                    <th style="padding: 16px; text-align: left; font-weight: 600;">Type</th>
+                                    <th style="padding: 16px; text-align: left; font-weight: 600;">Size</th>
+                                    <th style="padding: 16px; text-align: left; font-weight: 600;">Date</th>
+                                    <th style="padding: 16px; text-align: left; font-weight: 600;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${files.map(file => `
+                                    <tr style="border-bottom: 1px solid var(--border);">
+                                        <td style="padding: 12px;">
+                                            <img src="${file.imageUrl}" alt="${file.cropName}" 
+                                                 style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
+                                                 onerror="this.src='data:image/svg+xml,<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 24 24\\"><rect width=\\"24\\" height=\\"24\\" fill=\\"%23f0f0f0\\"/><text x=\\"12\\" y=\\"16\\" text-anchor=\\"middle\\" font-size=\\"10\\" fill=\\"%23999\\">No Image</text></svg>'">
+                                        </td>
+                                        <td style="padding: 12px; font-weight: 600;">${file.cropName}</td>
+                                        <td style="padding: 12px;">
+                                            <span class="crop-type-badge" style="background: var(--primary-color); color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                                                ${file.cropType}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; color: var(--text-secondary);">${formatFileSize(file.imageSize)}</td>
+                                        <td style="padding: 12px; color: var(--text-secondary);">${formatDate(file.createdAt)}</td>
+                                        <td style="padding: 12px;">
+                                            <div style="display: flex; gap: 8px;">
+                                                <a href="${file.imageUrl}" target="_blank" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="${file.imageUrl}" download="${file.imageName}" class="btn btn-sm btn-secondary">
+                                                    <i class="fas fa-download"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFiles();
+        });
+    </script>
+
+    <style>
+        .files-container.grid-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .files-container.list-view {
+            display: block;
+        }
+
+        .file-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .file-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .file-image {
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .file-error {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+
+        .file-error i {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .file-info {
+            padding: 16px;
+        }
+
+        .file-name {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .file-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .file-type {
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            text-transform: capitalize;
+        }
+
+        .file-size {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .file-date {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .file-actions {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .files-table {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .view-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .files-section h2 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+    </style>
+</body>
+</html>
