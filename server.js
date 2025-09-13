@@ -514,7 +514,12 @@ app.post('/api/chat/conversations', requireAuth, async (req, res) => {
 app.get('/api/chat/conversations/:id/messages', requireAuth, async (req, res) => {
   try {
     const messages = await ChatDB.getMessages(req.params.id);
-    res.json(messages);
+    // Transform message_type to role for frontend compatibility
+    const transformedMessages = messages.map(msg => ({
+      ...msg,
+      role: msg.message_type === 'ai' ? 'assistant' : msg.message_type
+    }));
+    res.json(transformedMessages);
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json([]);
@@ -539,12 +544,12 @@ app.post('/api/chat/conversations/:id/messages', requireAuth, async (req, res) =
       createdAt: new Date().toISOString()
     };
     
-    await ChatDB.addMessage(userMessage);
+    await ChatDB.addMessage(req.params.id, req.session.userId, 'user', content);
     
     // Get conversation history for context
     const messages = await ChatDB.getMessages(req.params.id);
     const conversationHistory = messages.map(msg => ({
-      role: msg.role,
+      role: msg.message_type === 'ai' ? 'assistant' : msg.message_type,
       content: msg.content
     }));
     
@@ -561,7 +566,7 @@ app.post('/api/chat/conversations/:id/messages', requireAuth, async (req, res) =
       createdAt: new Date().toISOString()
     };
     
-    await ChatDB.addMessage(assistantMessage);
+    await ChatDB.addMessage(req.params.id, req.session.userId, 'assistant', aiResponse);
     
     res.json({ 
       success: true, 

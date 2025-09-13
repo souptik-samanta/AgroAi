@@ -3,8 +3,9 @@ require('dotenv').config();
 
 class HackClubAI {
   constructor() {
-    this.baseURL = process.env.HACKCLUB_AI_URL || 'https://ai.hackclub.com/chat/completions';
-    this.defaultModel = process.env.HACKCLUB_AI_MODEL || 'qwen/qwen3-32b';
+    this.baseURL = 'https://ai.hackclub.com/chat/completions';
+    this.modelsURL = 'https://ai.hackclub.com/model';
+    this.defaultModel = 'qwen/qwen3-32b';
   }
 
   async makeRequest(messages, model = null) {
@@ -23,8 +24,11 @@ class HackClubAI {
 
       return response.data;
     } catch (error) {
-      console.error('HackClub AI API Error:', error.message);
-      throw new Error(`AI service unavailable: ${error.message}`);
+      console.error('HackClub AI API Error:', error.response?.data || error.message);
+      if (error.response?.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
+      throw new Error(`AI service unavailable: ${error.response?.data?.error || error.message}`);
     }
   }
 
@@ -32,46 +36,48 @@ class HackClubAI {
     const messages = [
       {
         role: "system",
-        content: `You are an expert agricultural AI assistant specializing in crop health analysis. 
-                 Analyze the provided crop image description and provide detailed health assessment.
-                 Always respond in the following JSON format:
-                 {
-                   "health": "Excellent|Good|Fair|Poor|Critical",
-                   "confidence": 85-99,
-                   "disease": "detected disease or 'Healthy'",
-                   "recommendation": "specific actionable advice",
-                   "details": "detailed explanation of findings"
-                 }`
+        content: `You are an expert agricultural AI assistant. Analyze crop health based on descriptions and provide structured responses.
+                 
+                 Respond with a JSON object containing:
+                 - health: "Excellent", "Good", "Fair", "Poor", or "Critical"
+                 - confidence: number between 85-99
+                 - disease: disease name or "None detected"
+                 - recommendation: specific farming advice
+                 - details: detailed explanation`
       },
       {
-        role: "user",
-        content: `Please analyze this ${cropType} crop image: ${imageDescription}. 
-                 The image shows the current state of the plant. Provide a comprehensive health assessment 
-                 with specific recommendations for improving crop health and yield.`
+        role: "user", 
+        content: `Analyze this ${cropType} crop: ${imageDescription}. Provide health assessment in JSON format.`
       }
     ];
 
     try {
+      console.log('🤖 Requesting AI analysis from HackClub AI...');
       const response = await this.makeRequest(messages);
+      console.log('✅ AI analysis response received');
+      
       const content = response.choices[0].message.content;
       
       // Try to parse JSON response
       try {
         const analysis = JSON.parse(content);
         return {
-          ...analysis,
+          health: analysis.health || 'Good',
+          confidence: analysis.confidence || 85,
+          disease: analysis.disease || 'Assessment complete',
+          recommendation: analysis.recommendation || 'Continue monitoring crop health',
+          details: analysis.details || content.substring(0, 500),
           analysisDate: new Date().toISOString(),
           processingTime: '2.1s',
           ai_model: this.defaultModel,
-          raw_response: response
+          raw_response: content
         };
       } catch (parseError) {
-        // If JSON parsing fails, create structured response from text
+        console.log('📝 AI returned text response, parsing manually...');
         return this.parseTextResponse(content);
       }
     } catch (error) {
-      console.error('Photo analysis failed:', error.message);
-      // Return fallback analysis
+      console.error('❌ Photo analysis failed:', error.message);
       return this.getFallbackAnalysis(cropType);
     }
   }
@@ -171,8 +177,10 @@ class HackClubAI {
 
   async getAvailableModels() {
     try {
-      const response = await axios.get('https://ai.hackclub.com/model');
-      return response.data.split(',');
+      const response = await axios.get(this.modelsURL);
+      const models = response.data.split(',').map(model => model.trim());
+      console.log('📋 Available models:', models);
+      return models;
     } catch (error) {
       console.error('Failed to get models:', error.message);
       return [this.defaultModel];
