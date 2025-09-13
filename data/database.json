@@ -8,6 +8,37 @@
       "createdAt": "2025-09-13T07:10:39.110Z"
     }
   ],
-  "crops": [],
+  "crops": [
+    {
+      "id": "2bc16dd7-1dc2-4f28-979f-4bd04d46ae17",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "North Field Wheat",
+      "type": "wheat",
+      "location": "Field A-1",
+      "plantedDate": "2024-03-15",
+      "imageUrl": null,
+      "createdAt": "2025-09-13T07:29:00.482Z"
+    },
+    {
+      "id": "3d723f75-4e48-44c7-a5a6-caf97da0e7fa",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "Greenhouse Tomatoes",
+      "type": "tomato",
+      "location": "Greenhouse B",
+      "plantedDate": "2024-04-01",
+      "imageUrl": null,
+      "createdAt": "2025-09-13T07:29:00.542Z"
+    },
+    {
+      "id": "c6c3ea14-77c6-4f1b-a3ca-19e4844f771e",
+      "userId": "302d0c22-6240-4ccf-ab6d-ee4c9e3c0a70",
+      "name": "East Plot Corn",
+      "type": "corn",
+      "location": "Field C-2",
+      "plantedDate": "2024-03-20",
+      "imageUrl": null,
+      "createdAt": "2025-09-13T07:29:00.561Z"
+    }
+  ],
   "analyses": []
 }
